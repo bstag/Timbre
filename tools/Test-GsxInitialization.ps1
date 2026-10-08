@@ -1,9 +1,8 @@
 [CmdletBinding()]
-param([switch]$StopSuiteTemporarily, [switch]$HardwareAudio, [switch]$ReconnectGsx, [switch]$RestartAudioEngine)
+param([switch]$StopSuiteTemporarily, [switch]$HardwareAudio, [switch]$HardwarePlaybackAudio, [switch]$ReconnectGsx, [switch]$RestartAudioEngine)
 $ErrorActionPreference='Stop'
-if ($HardwareAudio -and !$StopSuiteTemporarily) { throw '-HardwareAudio requires -StopSuiteTemporarily.' }
-if ($ReconnectGsx -and !$StopSuiteTemporarily) { throw '-ReconnectGsx requires -StopSuiteTemporarily.' }
-if ($RestartAudioEngine -and (!$StopSuiteTemporarily -or $ReconnectGsx)) { throw '-RestartAudioEngine requires -StopSuiteTemporarily and a separate run from -ReconnectGsx.' }
+. (Join-Path $PSScriptRoot 'GsxInitializationChecks.ps1')
+Assert-GsxInitializationOptions ([bool]$StopSuiteTemporarily) ([bool]$HardwareAudio) ([bool]$HardwarePlaybackAudio) ([bool]$ReconnectGsx) ([bool]$RestartAudioEngine)
 if ($StopSuiteTemporarily) {
     $principal=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
     if (!$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -35,7 +34,7 @@ $events=[Collections.Generic.List[object]]::new()
 $baseline=$null; $ready=$null; $hostProcess=$null; $serviceStopAttempted=$false; $uiClosed=$false
 $suiteProcesses=@(Get-Process EPOSGamingSuite -ErrorAction SilentlyContinue)
 $suitePath='C:\Program Files (x86)\EPOS\Gaming Suite\EPOSGamingSuite.exe'
-$initializationOutcome='NotRequested'; $audioOutcome='NotRequested'; $controlOutcome='NotRun'
+$initializationOutcome='NotRequested'; $audioOutcome='NotRequested'; $playbackAudioOutcome='NotRequested'; $controlOutcome='NotRun'
 $fullGsxRestored=$null; $fullB20Preserved=$null; $prepared=$false
 $disconnectObserved=$false; $returnObserved=$false
 $audioStopAttempted=$false; $audioRestartVerified=$false
@@ -216,6 +215,19 @@ try {
             if ($audioOutcome -eq 'Failed') { throw 'GSX gate audio check failed.' }
             Require-ServiceStopped
         }
+        if ($HardwarePlaybackAudio) {
+            $playbackAudioOutcome='Failed'
+            Require-ServiceStopped
+            $events.Add([pscustomobject]@{Stage='playback-audio-start';ServiceState=(Get-Service EPOSGamingSuiteService).Status.ToString();ProcessId=$hostProcess.Id;DeviceIdentity=$soundControl.DeviceIdentity})
+            $playbackAudioPath=Join-Path $reportRoot 'playback-audio-service-stopped.json'
+            & dotnet $testDll --hardware-playback-audio --expected-device-identity $soundControl.DeviceIdentity --require-suite-stopped --report $playbackAudioPath
+            $playbackAudioExit=$LASTEXITCODE
+            Require-ServiceStopped
+            $playbackAudio=Get-Content -LiteralPath $playbackAudioPath -Raw | ConvertFrom-Json
+            $playbackAudioOutcome=Get-GsxPlaybackAudioOutcome $playbackAudioExit $playbackAudio $soundControl.DeviceIdentity
+            $events.Add([pscustomobject]@{Stage='playback-audio-finished';ServiceState=(Get-Service EPOSGamingSuiteService).Status.ToString();ProcessId=$hostProcess.Id;Outcome=$playbackAudioOutcome;Path=$playbackAudioPath})
+            if ($playbackAudioOutcome -eq 'Failed') { throw 'GSX playback audio/context/restoration check failed; inspect its report.' }
+        }
         $gsxAfter=Read-Apo '0098'; [IO.File]::WriteAllBytes((Join-Path $reportRoot 'gsx-checks-restored.bin'),$gsxAfter)
         $fullGsxRestored=(Hash-Bytes $gsxAfter) -eq (Hash-Bytes $gsxBefore)
         if (!$fullGsxRestored) { throw 'Complete GSX starting memory was not restored after control checks.' }
@@ -286,8 +298,8 @@ finally {
     if ($finalService -ne 'Running') { $errors.Add('Vendor service was not restored to Running.') }
     if ($audioStopAttempted -and (Get-Service Audiosrv).Status -ne 'Running') { $errors.Add('Windows Audio was not restored to Running.') }
     if ($uiClosed -and ($suiteProcesses.Count -gt 0) -ne (@(Get-Process EPOSGamingSuite -ErrorAction SilentlyContinue).Count -gt 0)) { $errors.Add('Suite UI startup state differs.') }
-    $outcome=if($differences.Count -or $errors.Count){'Failed'}elseif($initializationOutcome -eq 'BlockedByExistingObjects'){'BlockedByExistingObjects'}elseif($audioOutcome -eq 'Inconclusive'){'Inconclusive'}elseif($prepared){'Passed'}else{'Failed'}
-    $summary=[ordered]@{CollectedAtUtc=[DateTime]::UtcNow.ToString('o');Outcome=$outcome;Prepared=$prepared;ServiceStopRequested=[bool]$StopSuiteTemporarily;ServiceStopAttempted=$serviceStopAttempted;InitializationOutcome=$initializationOutcome;CreatedFresh=($null -ne $ready -and $ready.CreatedFresh);ControlOutcome=$controlOutcome;AudioOutcome=$audioOutcome;FullGsxBufferRestored=$fullGsxRestored;FullB20BufferPreserved=$fullB20Preserved;FinalServiceState=$finalService;AudioEngineRestartRequested=[bool]$RestartAudioEngine;AudioEngineStopAttempted=$audioStopAttempted;AudioEngineRestartedWithFreshHost=$audioRestartVerified;FinalAudioServiceState=(Get-Service Audiosrv).Status.ToString();SettingsDifferences=$differences.ToArray();Errors=$errors.ToArray();Warnings=$warnings.ToArray();ColdStartTested=$false;ReconnectRequested=[bool]$ReconnectGsx;DisconnectObserved=$disconnectObserved;ReturnObserved=$returnObserved;PhysicalReconnectObserved=($disconnectObserved -and $returnObserved);ReconnectTested=$false;ManagedReconnectRecoveryTested=$false;AutomaticRestore=$false;StartupPolicy='Explicit current diagnostic snapshot only';Stages=$events.ToArray()}
+    $outcome=Get-GsxInitializationOutcome $prepared ([bool]$StopSuiteTemporarily) $initializationOutcome $controlOutcome $audioOutcome $playbackAudioOutcome ([bool]$HardwareAudio) ([bool]$HardwarePlaybackAudio) ($errors.Count -gt 0) ($differences.Count -gt 0)
+    $summary=[ordered]@{CollectedAtUtc=[DateTime]::UtcNow.ToString('o');Outcome=$outcome;Prepared=$prepared;ServiceStopRequested=[bool]$StopSuiteTemporarily;ServiceStopAttempted=$serviceStopAttempted;InitializationOutcome=$initializationOutcome;CreatedFresh=($null -ne $ready -and $ready.CreatedFresh);ControlOutcome=$controlOutcome;AudioOutcome=$audioOutcome;PlaybackAudioRequested=[bool]$HardwarePlaybackAudio;PlaybackAudioOutcome=$playbackAudioOutcome;FullGsxBufferRestored=$fullGsxRestored;FullB20BufferPreserved=$fullB20Preserved;FinalServiceState=$finalService;AudioEngineRestartRequested=[bool]$RestartAudioEngine;AudioEngineStopAttempted=$audioStopAttempted;AudioEngineRestartedWithFreshHost=$audioRestartVerified;FinalAudioServiceState=(Get-Service Audiosrv).Status.ToString();SettingsDifferences=$differences.ToArray();Errors=$errors.ToArray();Warnings=$warnings.ToArray();ColdStartTested=$false;ReconnectRequested=[bool]$ReconnectGsx;DisconnectObserved=$disconnectObserved;ReturnObserved=$returnObserved;PhysicalReconnectObserved=($disconnectObserved -and $returnObserved);ReconnectTested=$false;ManagedReconnectRecoveryTested=$false;AutomaticRestore=$false;StartupPolicy='Explicit current diagnostic snapshot only';Stages=$events.ToArray()}
     $summary | ConvertTo-Json -Depth 12 | Set-Content (Join-Path $reportRoot 'summary.json') -Encoding UTF8
     Write-Output ('GSX initialization reports: '+$reportRoot)
 }
@@ -297,6 +309,6 @@ if ($outcome -eq 'BlockedByExistingObjects') {
     else { Write-Warning 'GSX objects remain retained by a warm audio process. Fresh initialization was safely refused; service and UI were restored. Physical reconnect is a separate next step.' }
     exit 3
 }
-if ($outcome -eq 'Inconclusive') { Write-Warning 'Initialization/control/restoration passed; gate audio remains inconclusive.'; exit 2 }
+if ($outcome -eq 'Inconclusive') { Write-Warning ('Initialization/control/restoration passed; microphone audio: '+$audioOutcome+'; playback audio: '+$playbackAudioOutcome+'. See the individual reports.'); exit 2 }
 if ($StopSuiteTemporarily) { Write-Output 'GSX fresh initialization, microphone/playback controls and recovery passed.' }
 else { Write-Output 'Read-only GSX preparation passed. No service changes, vendor-object creation or settings writes.' }

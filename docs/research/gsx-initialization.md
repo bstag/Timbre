@@ -12,6 +12,22 @@ The runner reports `CreatedFresh=true`, `ControlOutcome=Passed`, `AudioOutcome=P
 
 Cold boot, managed GSX reconnect and automatic saved-state restoration remain separate unvalidated work and are deferred while this PC is in active use.
 
+## Fresh-session playback measurement runner
+
+The runner now accepts a separate `-HardwarePlaybackAudio` opt-in. In administrator PowerShell, when a brief interruption of all Windows audio is acceptable:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\tools\Test-GsxInitialization.ps1' -StopSuiteTemporarily -RestartAudioEngine -HardwarePlaybackAudio
+```
+
+After fresh creation and Windows Audio recovery, this plays a quiet 1 kHz tone on the GSX front pair and measures flat → +6 dB at 1 kHz → flat for about eight seconds. Keep other playback and controllers idle. Microphone background sound is unnecessary for this playback-only measurement. The runner restores the starting settings, full buffers, Windows levels/mutes and original service/UI state. No reboot or unplugging is needed. The installed EPOS driver/APO remains required.
+
+The measurement binds to the captured physical GSX playback identity and checks that EPOS support remains stopped before opening streams, between phases and about every 100 ms during capture. A detected restart, replacement device or failed restoration is a failure. `PlaybackAudioOutcome` is independent of the microphone's `AudioOutcome`; either signal-quality result can make the overall run inconclusive. `playback-audio-service-stopped.json` must establish the requested identity, stopped-service checks, three measurement phases and all preservation/restoration results. A normal service-running playback report cannot satisfy this check. The generic diagnostic still leaves `SuiteIndependenceValidated=false`; fresh-object evidence belongs to the enclosing runner.
+
+Six offline context regressions and 38 fixture-free PowerShell checks cover argument guards, physical identity, detected service restart, evidence acceptance and combined outcomes. The PowerShell checks run in normal source verification and CI without hardware, services or historical local reports. This addition prepares the fresh playback experiment; it does not establish a fresh-session playback audio pass. The earlier +6.002 dB playback result was measured in a normal vendor-supported session.
+
+Live refusal with vendor support Running passed on 2026-10-08: `artifacts/fresh-playback-refusal-20261008/assessment.json`. The diagnostic refused before opening streams or writing EQ, reported no measurement/output format, and both complete GSX/B20 buffers and all captured controls stayed unchanged. Both services remained Running. Missing `-StopSuiteTemporarily` is also refused before live preparation. These guard results do not establish fresh-session DSP.
+
 ## Successful hardware pilot
 
 Administrator run `artifacts/gsx-initialization/20261008-125145-6502c99f` passed with `-StopSuiteTemporarily -RestartAudioEngine`. The helper validated the live pair before the stop, then created a new GSX object set while both Windows Audio and EPOS support were stopped. `initialize/ready.json` reports `CreatedFresh=true`, `DiscoveryMethod=PreparedPairAndCurrentPnp`, the correct physical GSX and the original typed microphone/playback values. Windows Audio restarted while our helper held the new objects and the EPOS service remained stopped.

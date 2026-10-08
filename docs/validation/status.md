@@ -12,6 +12,10 @@ An additional run on 2026-10-08 passed **517 regression checks, 121 WPF scenario
 
 Playback diagnostic work later on the same date passed **531 regression checks, 121 WPF scenarios, and 9 offline GSX probe guards**. Four tone cases cover stereo/eight-channel front-pair rendering, continuity and unsupported formats; ten EQ cases cover reversible gain, inconclusive capture, failure restoration, concurrent edits and missing-device refusal. Evidence is in `artifacts/playback-validation-20261008/verification.log` and the normal JSON/JUnit reports.
 
+Fresh-playback runner preparation then passed **537 regression checks, 121 WPF scenarios, 38 fixture-free PowerShell runner checks and 9 offline GSX probe guards**. Six context regressions cover captured identity, missing/duplicate arguments and service-restart detection. Windows PowerShell 5.1 and PowerShell 7 passed the runner's synthetic option/evidence/outcome checks; CI runs them without historical local reports. Evidence: `artifacts/fresh-playback-verification-20261008.log`, `fresh-playback-context-tests-20261008.json` and `gsx-initialization-checks.json`.
+
+A live running-service refusal check passed before any measurement streams or diagnostic EQ writes: `artifacts/fresh-playback-refusal-20261008/assessment.json`. Both complete buffers and all captured device controls were unchanged, and both services remained Running. The fresh runner's playback measurement is ready for an administrator run, with physical identity and stopped-service evidence required; this preparation/refusal result is not a fresh-session playback audio pass.
+
 ## Device evidence
 
 | Area | Established on the local installation | Remaining boundary |

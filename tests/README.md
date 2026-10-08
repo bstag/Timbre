@@ -12,6 +12,8 @@ Startup storage checks exercise the same `ApplicationStorage` factory used by th
 
 Playback diagnostic regressions cover the quiet stereo/eight-channel tone (front pair only), buffer continuity, and EQ measurement/restoration under capture failure, stale processing, changed volume and missing devices. `--playback-diagnostic-self-test` runs this focused offline group. Only `--hardware-playback-audio` or the scripts' `-HardwarePlaybackAudio` switch plays the tone and temporarily edits EQ; these are never part of the default offline run.
 
+The focused group also checks physical-device binding and stopped-service context with fake callbacks. `tools/Test-GsxInitializationChecks.ps1`, included in `Test-App.ps1`, exercises the fresh runner's option guards, playback evidence requirements and combined outcomes using synthetic reports. It runs in Windows PowerShell 5.1 and PowerShell 7 without hardware or ignored historical captures; its report is `artifacts/gsx-initialization-checks.json`.
+
 See [building and testing](../docs/development/building-and-testing.md) for prerequisites and [protocol/test coverage](../docs/development/microphone-protocol-and-tests.md) for semantics. Optional hardware arguments are separate from the default command.
 
 [Fixtures](Timbre.Tests/Fixtures/README.md) contain reviewed control-state evidence, topology, screenshots, lookup maps, and hashes. Preserve their provenance and do not automatically regenerate the manifest. Historical reports under `artifacts/` are local investigation output, not required clean-checkout test inputs.

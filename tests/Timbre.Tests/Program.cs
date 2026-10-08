@@ -1,6 +1,6 @@
 if (args.Contains("--restore-audio-state")) return OperatingSystem.IsWindows() ? AudioRecoveryCommand.Run(args) : 1;
 if (args.Contains("--playback-diagnostic-self-test")) {
-    var diagnosticSuite = new TestSuite(); PlaybackDiagnosticTests.Run(diagnosticSuite); PlaybackEqAudioTests.Run(diagnosticSuite); diagnosticSuite.Report(args.Skip(1).ToArray());
+    var diagnosticSuite = new TestSuite(); PlaybackDiagnosticTests.Run(diagnosticSuite); PlaybackEqAudioTests.Run(diagnosticSuite); PlaybackAudioContextTests.Run(diagnosticSuite); diagnosticSuite.Report(args.Skip(1).ToArray());
     return diagnosticSuite.Failures == 0 ? 0 : 1;
 }
 if (args.Contains("--apo-lease-probe")) return OperatingSystem.IsWindows() ? ApoObjectLeaseTests.Probe(args) : 1;
@@ -24,6 +24,7 @@ GsxSidetoneTests.Run(suite);
 PlaybackTests.Run(suite);
 PlaybackDiagnosticTests.Run(suite);
 PlaybackEqAudioTests.Run(suite);
+PlaybackAudioContextTests.Run(suite);
 ReverbTests.Run(suite);
 LiveApplyTests.Run(suite);
 ProfileWorkflowTests.Run(suite);

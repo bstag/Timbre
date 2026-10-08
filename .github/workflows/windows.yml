@@ -43,6 +43,7 @@ jobs:
           path: |
             artifacts/tests.json
             artifacts/tests.xml
+            artifacts/gsx-initialization-checks.json
             artifacts/app-preview.png
             artifacts/app-preview.png.json
             dist/startup-error.txt

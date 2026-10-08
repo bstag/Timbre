@@ -8,6 +8,7 @@ Run scripts from the repository root in 64-bit PowerShell. Normal source verific
 | --- | --- |
 | `Build-App.ps1` | Build app/helper into ignored `dist`; `-RunTests` also runs regressions. |
 | `Test-App.ps1` | Build and run offline regressions, probe guards, and demo WPF scenarios. Hardware flags are explicit opt-in. |
+| `Test-GsxInitializationChecks.ps1` | Fixture-free offline option/evidence/outcome checks for the fresh GSX runner; included in normal source verification. |
 | `Test-Documentation.ps1` | Check local Markdown file links in source or a portable package. |
 | `Package-App.ps1` | Verify source by default, prepare ZIP, hash payload, and check extraction/docs. |
 | `portable/` | Templates copied to the extracted ZIP root, including `START-HERE.md` and verification/launch scripts. |
@@ -19,6 +20,8 @@ See [building/testing](../docs/development/building-and-testing.md) and [releasi
 ## Hardware and service experiments
 
 `Test-ApoHost.ps1`, `Test-GsxInitialization.ps1`, and `Test-SuiteDependencies.ps1` support bounded experiments with explicit opt-in switches. Depending on arguments, they can stop services, change controls, or restart Windows Audio. Read the [B20 helper](../docs/research/apo-control-host.md), [GSX initialization](../docs/research/gsx-initialization.md), or [dependency plan](../docs/roadmap/installer-and-dependencies.md) first and preserve a fresh baseline.
+
+For playback DSP after fresh initialization, `Test-GsxInitialization.ps1 -StopSuiteTemporarily -RestartAudioEngine -HardwarePlaybackAudio` requires administrator PowerShell and briefly interrupts all PC audio. It binds the quiet tone/EQ measurement to the captured GSX, checks stopped vendor support throughout capture and reports `PlaybackAudioOutcome` separately. No microphone input, unplugging or reboot is required. Restoration failures remain failures; inadequate capture remains inconclusive. This fresh-session playback measurement is prepared but has not yet passed on hardware.
 
 `Test-ManagedHostProcess.ps1` checks an intentionally absent B20 target without hardware writes. `Test-GsxPreparedHost.ps1` exercises prepared discovery/refusal paths; consult its parameters and GSX guide before running it.
 

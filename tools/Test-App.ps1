@@ -16,6 +16,7 @@ try {
     $testDll=Join-Path $root 'tests/Timbre.Tests/bin/Release/net9.0/Timbre.Tests.dll'
     dotnet $testDll --report artifacts/tests.json --junit artifacts/tests.xml
     if ($LASTEXITCODE) { throw 'Regression tests failed; see artifacts/tests.json' }
+    & (Join-Path $PSScriptRoot 'Test-GsxInitializationChecks.ps1')
     $gsxProbe=Join-Path $root 'tools/GsxSidetoneProbe/bin/Release/net9.0/GsxSidetoneProbe.dll'
     if (Test-Path -LiteralPath $gsxProbe) {
         # Offline descriptor/command guards only; never queries or changes hardware.

@@ -28,7 +28,7 @@ Close a running copy from `dist` before rebuilding into that directory; Windows 
 .\tools\Test-App.ps1
 ```
 
-`Test-App.ps1` builds the app/helper, regression suite, and GSX probe, then runs regression checks, offline probe guards, and WPF scenarios with demo adapters. It never opts into live hardware checks. Native tests use isolated object names. Reports are `artifacts/tests.json`, `artifacts/tests.xml`, `artifacts/app-preview.png`, and `artifacts/app-preview.png.json`.
+`Test-App.ps1` builds the app/helper, regression suite, and GSX probe, then runs regression checks, fixture-free GSX initialization rules, offline probe guards, and WPF scenarios with demo adapters. It never opts into live hardware checks. Native tests use isolated object names. Reports are `artifacts/tests.json`, `artifacts/tests.xml`, `artifacts/gsx-initialization-checks.json`, `artifacts/app-preview.png`, and `artifacts/app-preview.png.json`.
 
 `Build-App.ps1 -RunTests` builds and runs regressions but does not perform the full WPF/probe verification. `Test-App.ps1 -SkipBuild` runs the last built binaries; use it only when those binaries match the intended source.
 
