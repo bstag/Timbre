@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$SkipBuild, [ValidateSet('009f','0098')][string]$HardwareEffects, [ValidateSet('009f','0098')][string]$HardwareAudio, [ValidateSet('009f')][string]$HardwareSidetone, [switch]$HardwarePlayback, [switch]$HardwareLoopback, [switch]$HardwareGsxSidetone, [ValidateSet('009f','0098')][string]$MonitorPackets)
+param([switch]$SkipBuild, [ValidateSet('009f','0098')][string]$HardwareEffects, [ValidateSet('009f','0098')][string]$HardwareAudio, [ValidateSet('009f')][string]$HardwareSidetone, [switch]$HardwarePlayback, [switch]$HardwareLoopback, [switch]$HardwarePlaybackAudio, [switch]$HardwareGsxSidetone, [ValidateSet('009f','0098')][string]$MonitorPackets)
 $ErrorActionPreference='Stop'
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Push-Location $root
@@ -38,6 +38,12 @@ try {
         # Explicit opt-in: two seconds of quiet generated 1 kHz audio on GSX output; no settings/default changes.
         dotnet $testDll --hardware-loopback --report artifacts/loopback-verification-0098.json
         if ($LASTEXITCODE) { throw 'GSX loopback check failed; see its report.' }
+    }
+    if ($HardwarePlaybackAudio) {
+        # Opt-in: quiet front-pair tone, flat/+6 dB/flat playback EQ, guarded restoration; no service changes.
+        dotnet $testDll --hardware-playback-audio --report artifacts/playback-eq-audio-verification-0098.json
+        if ($LASTEXITCODE -eq 2) { Write-Warning 'Playback EQ audio is inconclusive; see its report. Loopback position or competing playback may prevent attribution.' }
+        elseif ($LASTEXITCODE) { throw 'GSX playback EQ audio/restoration check failed; see its report.' }
     }
     if ($HardwareSidetone) {
         dotnet $testDll --hardware-sidetone $HardwareSidetone --report ('artifacts/sidetone-verification-'+$HardwareSidetone+'.json')

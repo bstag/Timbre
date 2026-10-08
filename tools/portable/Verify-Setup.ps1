@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$HardwareSidetone, [switch]$HardwareAudio, [switch]$HardwareGsxAudio, [switch]$HardwareEffects, [switch]$HardwareStatus, [switch]$HardwarePlayback, [switch]$HardwareGsxMicrophone, [switch]$HardwareLoopback, [switch]$HardwareGsxSidetone, [ValidateSet('009f','0098')][string]$MonitorPackets)
+param([switch]$HardwareSidetone, [switch]$HardwareAudio, [switch]$HardwareGsxAudio, [switch]$HardwareEffects, [switch]$HardwareStatus, [switch]$HardwarePlayback, [switch]$HardwareGsxMicrophone, [switch]$HardwareLoopback, [switch]$HardwarePlaybackAudio, [switch]$HardwareGsxSidetone, [ValidateSet('009f','0098')][string]$MonitorPackets)
 $ErrorActionPreference='Stop'
 if (![Environment]::Is64BitOperatingSystem -or ![Environment]::Is64BitProcess) { throw 'Run these checks from 64-bit Windows PowerShell.' }
 $packageRoot=[IO.Path]::GetFullPath($PSScriptRoot)
@@ -69,6 +69,12 @@ if ($HardwareGsxAudio) {
     & $dotnet $testDll --hardware-audio 0098 --report (Join-Path $reports 'audio-gsx.json')
     if ($LASTEXITCODE -eq 2) { Write-Warning 'GSX audio check inconclusive; repeat with steady quiet input. See its report.' }
     elseif ($LASTEXITCODE) { throw ('GSX audio attenuation criterion or restoration failed; this does not prove driver causality. See '+$reports) }
+}
+if ($HardwarePlaybackAudio) {
+    # Opt-in: quiet generated front-pair tone and reversible 1 kHz playback EQ measurement.
+    & $dotnet $testDll --hardware-playback-audio --report (Join-Path $reports 'playback-eq-audio.json')
+    if ($LASTEXITCODE -eq 2) { Write-Warning 'Playback EQ audio is inconclusive; inspect loopback/competing-playback evidence in its report.' }
+    elseif ($LASTEXITCODE) { throw ('Playback EQ audio/restoration check failed. See '+$reports) }
 }
 if ($HardwareAudio) {
     & $dotnet $testDll --hardware-audio 009f --report (Join-Path $reports 'audio.json')

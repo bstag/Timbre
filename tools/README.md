@@ -14,6 +14,8 @@ Run scripts from the repository root in 64-bit PowerShell. Normal source verific
 
 See [building/testing](../docs/development/building-and-testing.md) and [releasing](../docs/development/releasing.md).
 
+`Test-App.ps1 -HardwarePlaybackAudio` explicitly opts into an approximately eight-second quiet GSX front-pair tone and flat/+6 dB/flat 1 kHz playback EQ comparison. It restores the original playback curve/reverb, checks Windows controls and B20 preservation, and saves metrics only. No services/default devices change and no reboot is needed. Keep other playback and controllers idle. An unchanged/unstable/interrupted loopback measurement is inconclusive, not proof that the device's EQ is broken. The same switch is available in portable `Verify-Setup.ps1`; default verification remains offline/demo plus its existing read-only diagnostics.
+
 ## Hardware and service experiments
 
 `Test-ApoHost.ps1`, `Test-GsxInitialization.ps1`, and `Test-SuiteDependencies.ps1` support bounded experiments with explicit opt-in switches. Depending on arguments, they can stop services, change controls, or restart Windows Audio. Read the [B20 helper](../docs/research/apo-control-host.md), [GSX initialization](../docs/research/gsx-initialization.md), or [dependency plan](../docs/roadmap/installer-and-dependencies.md) first and preserve a fresh baseline.

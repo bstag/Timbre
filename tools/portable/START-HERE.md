@@ -48,11 +48,14 @@ From 64-bit PowerShell in the extracted folder:
 .\Verify-Setup.ps1 -HardwareGsxMicrophone
 .\Verify-Setup.ps1 -HardwareGsxSidetone
 .\Verify-Setup.ps1 -HardwareLoopback
+.\Verify-Setup.ps1 -HardwarePlaybackAudio
 ```
 
 These switches explicitly enable brief live changes and restoration. Run them separately. Sidetone and effects checks test state readback and restoration. The GSX playback check toggles sound mode, applies a nine-band EQ curve and checks reverb amount/bypass, checks microphone and unowned-field isolation and restores the starting mode/curve; it does not validate audible surround. The audio check temporarily switches the B20 gate off / maximum / off and saves numerical measurements only, with no recording. Keep the unmuted mic input steady for about eight seconds. A quiet or unstable signal can be inconclusive. Concurrent edits or a disconnection can prevent restoration; inspect the reported result before proceeding.
 
 For an optional B20 status/dependency snapshot, run `./Verify-Setup.ps1 -HardwareStatus`. This sends the recovered USB status query without changing settings or stopping services. It saves adapter availability/errors and warns if pattern status is unavailable. Completing the snapshot is not a hardware status pass.
+
+`-HardwarePlaybackAudio` plays a quiet 1 kHz tone on the GSX front pair for about eight seconds and measures flat/+6 dB/flat EQ. Stereo and eight-channel float formats are supported; remaining channels are silent. Keep other playback/controllers idle. The original EQ/reverb settings are restored, Windows controls and B20 preservation are checked, and no audio recording is saved. A pass proves a reversible EQ response at the capture point, not surround/reverb behavior or service independence. Missing, interrupted, unstable or ambiguous evidence is inconclusive; restoration failures remain failures. This check changes no services/default devices and needs no reboot.
 
 The default verifier also works without an EPOS device connected. Passing the offline/UI checks in that situation does not validate another PC's audio hardware.
 

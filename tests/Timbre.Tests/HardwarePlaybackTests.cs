@@ -64,7 +64,7 @@ internal static class HardwarePlaybackTests
         return passed ? 0 : 1;
     }
     [SupportedOSPlatform("windows")]
-    private static byte[] Snapshot(string product)
+    internal static byte[] Snapshot(string product)
     {
         using var session = new WindowsApoMemory.Session("Global\\CF4B411F-BE2B-4D84-8106-EC27CA0F8F05_1395_" + product,
             (offset, length) => throw new InvalidOperationException("Diagnostic snapshot is read-only."));

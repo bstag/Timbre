@@ -1,8 +1,13 @@
 if (args.Contains("--restore-audio-state")) return OperatingSystem.IsWindows() ? AudioRecoveryCommand.Run(args) : 1;
+if (args.Contains("--playback-diagnostic-self-test")) {
+    var diagnosticSuite = new TestSuite(); PlaybackDiagnosticTests.Run(diagnosticSuite); PlaybackEqAudioTests.Run(diagnosticSuite); diagnosticSuite.Report(args.Skip(1).ToArray());
+    return diagnosticSuite.Failures == 0 ? 0 : 1;
+}
 if (args.Contains("--apo-lease-probe")) return OperatingSystem.IsWindows() ? ApoObjectLeaseTests.Probe(args) : 1;
 if (args.Contains("--hardware-effects")) return OperatingSystem.IsWindows() ? HardwareEffectsTests.Run(args) : 1;
 if (args.Contains("--hardware-playback")) return OperatingSystem.IsWindows() ? HardwarePlaybackTests.Run(args) : 1;
 if (args.Contains("--hardware-loopback")) return OperatingSystem.IsWindows() ? HardwareLoopbackTests.Run(args) : 1;
+if (args.Contains("--hardware-playback-audio")) return OperatingSystem.IsWindows() ? HardwarePlaybackAudioTests.Run(args) : 1;
 if (args.Contains("--hardware-audio")) return HardwareAudioTests.Run(args);
 if (args.Contains("--topology")) return TopologyDiagnostics.Run(args);
 if (args.Contains("--hardware-sidetone")) return HardwareSidetoneTests.Run(args);
@@ -17,6 +22,8 @@ ControlDiagnosticsTests.Run(suite);
 GsxSidetoneEvidenceTests.Run(suite);
 GsxSidetoneTests.Run(suite);
 PlaybackTests.Run(suite);
+PlaybackDiagnosticTests.Run(suite);
+PlaybackEqAudioTests.Run(suite);
 ReverbTests.Run(suite);
 LiveApplyTests.Run(suite);
 ProfileWorkflowTests.Run(suite);

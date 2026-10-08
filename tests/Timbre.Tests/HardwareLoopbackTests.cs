@@ -16,13 +16,15 @@ internal static class HardwareLoopbackTests
         var result = 1;
         var thread = new Thread(() => {
             var report = reportPath;
-            AudioEndpoint? endpoint = null; MicrophoneMonitorFrame? frame = null; long frames = 0; string? error = null;
+            AudioEndpoint? endpoint = null; MicrophoneMonitorFrame? frame = null; CaptureFormat? outputFormat = null; long frames = 0; string? error = null;
             var preserved = false;
+            CoreAudioBackend? audio = null; Dictionary<string, AudioState>? audioBefore = null;
             try {
-                var audio = new CoreAudioBackend();
+                audio = new CoreAudioBackend();
                 endpoint = audio.Discover().Single(e => e.Direction == AudioDirection.Playback && e.Usb is { VendorId: "1395", ProductId: "0098" });
-                var audioBefore = audio.Discover().ToDictionary(e => e.Id, e => audio.Read(e.Id));
+                audioBefore = audio.Discover().ToDictionary(e => e.Id, e => audio.Read(e.Id));
                 using (var source = WasapiMeasurementSource.OpenPlaybackLoopback(endpoint)) {
+                    outputFormat = source.Format;
                     var spectrum = new MicrophoneSpectrum(source.Format);
                     using var tone = new QuietTone(endpoint);
                     var clock = Stopwatch.StartNew();
@@ -40,22 +42,28 @@ internal static class HardwareLoopbackTests
                 TestSuite.Assert(dominant.Index == 4 && frame.RmsDbFs > -90, "Quiet 1 kHz test signal not detected; competing audio or a muted output may make this check inconclusive");
                 result = 0;
             } catch (Exception ex) { error = ex.ToString(); }
+            finally {
+                try { preserved = audioBefore is not null && audioBefore.All(p => audio!.Read(p.Key) == p.Value); }
+                catch (Exception ex) { error += "\nWindows control comparison: " + ex; }
+                if (!preserved) result = 1;
+            }
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
-            File.WriteAllText(report, JsonSerializer.Serialize(new { Passed = result == 0, Endpoint = endpoint?.Name, Frames = frames, Frame = frame,
+            File.WriteAllText(report, JsonSerializer.Serialize(new { Passed = result == 0, Endpoint = endpoint?.Name, OutputFormat = outputFormat, Frames = frames, Frame = frame,
                 WindowsControlsPreserved = preserved, ToneHz = 1000, TonePeakAmplitude = .005, DurationSeconds = 2,
-                RecordingSaved = false, DspPositionVerified = false, Error = error }, new JsonSerializerOptions { WriteIndented = true }));
+                RecordingSaved = false, DspPositionVerified = false,
+                Scope = "Playback capture availability and dominant frequency only; inspect stream interruptions separately", Error = error }, new JsonSerializerOptions { WriteIndented = true }));
         });
         thread.SetApartmentState(ApartmentState.STA); thread.Start(); thread.Join();
         Console.WriteLine($"GSX loopback {(result == 0 ? "PASS" : "FAIL")}; report: {reportPath}"); return result;
     }
     // Explicit diagnostic only: quiet generated tone on the selected endpoint, with no default-device changes.
-    private sealed class QuietTone : IDisposable
+    internal sealed class QuietTone : IDisposable
     {
         private Native.AudioClient? client;
         private RenderClient? render;
         private CaptureFormat format = null!;
         private uint capacity;
-        private long position;
+        private DiagnosticToneSignal signal = null!;
         private bool started;
         internal QuietTone(AudioEndpoint endpoint)
         {
@@ -69,7 +77,7 @@ internal static class HardwareLoopbackTests
                         var size = checked(18 + (ushort)Marshal.ReadInt16(pointer, 16));
                         if (size > 4096) throw new InvalidDataException("Unknown output format");
                         var bytes = new byte[size]; Marshal.Copy(pointer, bytes, 0, size); format = CaptureFormat.Parse(bytes);
-                        if (!format.FloatingPoint || format.Bits != 32 || format.Channels != 2) throw new InvalidDataException("Quiet GSX probe requires stereo float32 output");
+                        signal = new(format);
                         Native.Check(client.Initialize(0, 0, 1_000_000, 0, pointer, IntPtr.Zero));
                     } finally { Marshal.FreeCoTaskMem(pointer); }
                     Native.Check(client.GetBufferSize(out capacity));
@@ -87,11 +95,7 @@ internal static class HardwareLoopbackTests
             if (available == 0) return;
             Native.Check(render!.GetBuffer(available, out var pointer)); var released = false;
             try {
-                var samples = new float[checked((int)available * format.Channels)];
-                for (var i = 0; i < available; i++, position++) {
-                    var sample = (float)(.005 * Math.Sin(2 * Math.PI * 1000 * position / format.SampleRate));
-                    for (var channel = 0; channel < format.Channels; channel++) samples[i * format.Channels + channel] = sample;
-                }
+                var samples = signal.Fill(checked((int)available));
                 Marshal.Copy(samples, 0, pointer, samples.Length);
                 released = true; Native.Check(render.ReleaseBuffer(available, 0));
             } finally { if (!released) Native.Check(render.ReleaseBuffer(available, 2)); }
