@@ -33,3 +33,36 @@ function Get-GsxInitializationOutcome([bool]$Prepared, [bool]$StopRequested, [st
     if ($AudioOutcome -eq 'Inconclusive' -or $PlaybackAudioOutcome -eq 'Inconclusive') { return 'Inconclusive' }
     return 'Passed'
 }
+
+function Test-GsxVendorRecoveryRequired($Baseline,$Current) {
+    $targets=@($Baseline.Controls | Where-Object DeviceIdentity -like 'usb-v1:1395:0098:*')
+    if ($targets.Count -ne 2 -or @($targets | Where-Object DeviceIdentity -like '*|Playback').Count -ne 1 -or
+        @($targets | Where-Object DeviceIdentity -like '*|Microphone').Count -ne 1 -or
+        $targets[0].DeviceIdentity.Split('|')[0] -cne $targets[1].DeviceIdentity.Split('|')[0]) { throw 'Baseline must identify one complete physical GSX pair.' }
+    $sound=@($targets | Where-Object DeviceIdentity -like '*|Playback')[0]
+    $mic=@($targets | Where-Object DeviceIdentity -like '*|Microphone')[0]
+    if ($sound.Playback.Status -ne 'Available' -or $mic.Microphone.Status -ne 'Available') { throw 'The saved GSX starting processing must be readable.' }
+    $rows=@($Current.Controls | Where-Object DeviceIdentity -like 'usb-v1:1395:0098:*')
+    if ($rows.Count -ne 2 -or @($targets | Where-Object { $_.DeviceIdentity -cnotin $rows.DeviceIdentity }).Count -or
+        @($rows | Where-Object { $_.Audio.Status -ne 'Available' }).Count) { throw 'The live GSX pair is missing, ambiguous, disconnected or differs from the baseline.' }
+    $sound=@($rows | Where-Object DeviceIdentity -like '*|Playback')[0]
+    $mic=@($rows | Where-Object DeviceIdentity -like '*|Microphone')[0]
+    if ($sound.Playback.Status -eq 'Available' -and $mic.Microphone.Status -eq 'Available') { return $false }
+    if ($sound.Playback.Status -ne 'Unavailable' -or $mic.Microphone.Status -ne 'Unavailable' -or
+        $sound.Playback.ErrorType -ne 'WaitHandleCannotBeOpenedException' -or $mic.Microphone.ErrorType -ne 'WaitHandleCannotBeOpenedException') {
+        throw 'Recovery only handles the missing GSX object set; other failures require diagnosis.'
+    }
+    return $true
+}
+
+function Test-ApoVendorHandoffReady($Owners,[int]$ServiceProcessId,[string]$ProductId='0098') {
+    if ($ProductId -notin @('0098','009f')) { throw 'Only mapped EPOS product namespaces may be inspected.' }
+    if ($ServiceProcessId -le 0) { return $false }
+    $prefix='Global\CF4B411F-BE2B-4D84-8106-EC27CA0F8F05_1395_'+$ProductId
+    foreach ($suffix in @('memory','mutex','event')) {
+        $rows=@($Owners | Where-Object { $_.ProcessId -eq $ServiceProcessId -and $_.ProcessName -eq 'EPOSGamingSuiteService' -and
+            $_.ObjectName -ceq ($prefix+'_'+$suffix) -and $_.HandleCount -gt 0 })
+        if ($rows.Count -ne 1) { return $false }
+    }
+    return $true
+}

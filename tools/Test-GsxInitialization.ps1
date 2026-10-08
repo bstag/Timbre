@@ -39,6 +39,7 @@ $fullGsxRestored=$null; $fullB20Preserved=$null; $prepared=$false
 $disconnectObserved=$false; $returnObserved=$false
 $audioStopAttempted=$false; $audioRestartVerified=$false
 $gsxPreparedEntry=$null
+$vendorHandoffObserved=$null; $vendorHandoffWaitSeconds=$null
 function Save-Diagnostics([string]$name) {
     $path=Join-Path $reportRoot ($name+'.json')
     $process=Start-Process -FilePath $appExe -ArgumentList @('--diagnostics',('"'+$path+'"')) -WindowStyle Hidden -PassThru -Wait
@@ -111,6 +112,24 @@ function Wait-Ready($entry,[string]$file='ready.json') {
 function Require-ServiceStopped {
     if ((Get-Service EPOSGamingSuiteService).Status -ne 'Stopped') { throw 'Vendor service restarted; independent initialization was not tested.' }
     if ($hostProcess -and $hostProcess.HasExited) { throw 'GSX helper exited before the control checks finished.' }
+}
+function Wait-VendorHandoff {
+    if (!('EposResearch.ApoHandleOwners' -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot 'ApoHandleOwners.cs') }
+    $watch=[Diagnostics.Stopwatch]::StartNew(); $observed=$false; $owners=@(); $serviceProcessId=0
+    do {
+        if ($hostProcess.HasExited) { throw 'GSX initializer exited before ownership handoff inspection.' }
+        $vendorState=Get-CimInstance Win32_Service -Filter "Name='EPOSGamingSuiteService'"
+        $serviceProcessId=[int]$vendorState.ProcessId
+        $owners=@([EposResearch.ApoHandleOwners]::Read('0098'))
+        $observed=$vendorState.State -eq 'Running' -and (Test-ApoVendorHandoffReady $owners $serviceProcessId)
+        if ($observed) { break }
+        Start-Sleep -Milliseconds 500
+    } while ($watch.Elapsed.TotalSeconds -lt 45)
+    $script:vendorHandoffObserved=$observed; $script:vendorHandoffWaitSeconds=$watch.Elapsed.TotalSeconds
+    [pscustomobject]@{Observed=$observed;WaitSeconds=$watch.Elapsed.TotalSeconds;VendorProcessId=$serviceProcessId;InitializerProcessId=$hostProcess.Id;Owners=$owners;Scope='Existing handles only; no creation, notifications or settings writes'} |
+        ConvertTo-Json -Depth 8 | Set-Content (Join-Path $reportRoot 'vendor-handoff.json') -Encoding UTF8
+    $events.Add([pscustomobject]@{Stage='vendor-handoff-inspected';ServiceState=(Get-Service EPOSGamingSuiteService).Status.ToString();Observed=$observed;WaitSeconds=$watch.Elapsed.TotalSeconds})
+    if (!$observed) { throw 'Vendor ownership of all three GSX handles was not observed within 45 seconds. Bounded helper cleanup will proceed; recovery remains failed.' }
 }
 function Wait-GsxConnection([bool]$connected) {
     $watch=[Diagnostics.Stopwatch]::StartNew(); $attempt=0
@@ -261,6 +280,9 @@ finally {
             Start-Process -FilePath $suitePath -WindowStyle Hidden
         }
     } catch { $errors.Add('Suite UI restoration: '+$_.Exception.Message) }
+    if ($ready -and $ready.CreatedFresh -and $hostProcess -and !$hostProcess.HasExited -and (Get-Service EPOSGamingSuiteService).Status -eq 'Running') {
+        try { Wait-VendorHandoff } catch { $errors.Add('Vendor ownership handoff: '+$_.Exception.Message) }
+    }
     [IO.File]::WriteAllText($stopFile,'stop')
     foreach ($entry in $processes) {
         try {
@@ -299,7 +321,7 @@ finally {
     if ($audioStopAttempted -and (Get-Service Audiosrv).Status -ne 'Running') { $errors.Add('Windows Audio was not restored to Running.') }
     if ($uiClosed -and ($suiteProcesses.Count -gt 0) -ne (@(Get-Process EPOSGamingSuite -ErrorAction SilentlyContinue).Count -gt 0)) { $errors.Add('Suite UI startup state differs.') }
     $outcome=Get-GsxInitializationOutcome $prepared ([bool]$StopSuiteTemporarily) $initializationOutcome $controlOutcome $audioOutcome $playbackAudioOutcome ([bool]$HardwareAudio) ([bool]$HardwarePlaybackAudio) ($errors.Count -gt 0) ($differences.Count -gt 0)
-    $summary=[ordered]@{CollectedAtUtc=[DateTime]::UtcNow.ToString('o');Outcome=$outcome;Prepared=$prepared;ServiceStopRequested=[bool]$StopSuiteTemporarily;ServiceStopAttempted=$serviceStopAttempted;InitializationOutcome=$initializationOutcome;CreatedFresh=($null -ne $ready -and $ready.CreatedFresh);ControlOutcome=$controlOutcome;AudioOutcome=$audioOutcome;PlaybackAudioRequested=[bool]$HardwarePlaybackAudio;PlaybackAudioOutcome=$playbackAudioOutcome;FullGsxBufferRestored=$fullGsxRestored;FullB20BufferPreserved=$fullB20Preserved;FinalServiceState=$finalService;AudioEngineRestartRequested=[bool]$RestartAudioEngine;AudioEngineStopAttempted=$audioStopAttempted;AudioEngineRestartedWithFreshHost=$audioRestartVerified;FinalAudioServiceState=(Get-Service Audiosrv).Status.ToString();SettingsDifferences=$differences.ToArray();Errors=$errors.ToArray();Warnings=$warnings.ToArray();ColdStartTested=$false;ReconnectRequested=[bool]$ReconnectGsx;DisconnectObserved=$disconnectObserved;ReturnObserved=$returnObserved;PhysicalReconnectObserved=($disconnectObserved -and $returnObserved);ReconnectTested=$false;ManagedReconnectRecoveryTested=$false;AutomaticRestore=$false;StartupPolicy='Explicit current diagnostic snapshot only';Stages=$events.ToArray()}
+    $summary=[ordered]@{CollectedAtUtc=[DateTime]::UtcNow.ToString('o');Outcome=$outcome;Prepared=$prepared;ServiceStopRequested=[bool]$StopSuiteTemporarily;ServiceStopAttempted=$serviceStopAttempted;InitializationOutcome=$initializationOutcome;CreatedFresh=($null -ne $ready -and $ready.CreatedFresh);ControlOutcome=$controlOutcome;AudioOutcome=$audioOutcome;PlaybackAudioRequested=[bool]$HardwarePlaybackAudio;PlaybackAudioOutcome=$playbackAudioOutcome;VendorHandoffObserved=$vendorHandoffObserved;VendorHandoffWaitSeconds=$vendorHandoffWaitSeconds;FullGsxBufferRestored=$fullGsxRestored;FullB20BufferPreserved=$fullB20Preserved;FinalServiceState=$finalService;AudioEngineRestartRequested=[bool]$RestartAudioEngine;AudioEngineStopAttempted=$audioStopAttempted;AudioEngineRestartedWithFreshHost=$audioRestartVerified;FinalAudioServiceState=(Get-Service Audiosrv).Status.ToString();SettingsDifferences=$differences.ToArray();Errors=$errors.ToArray();Warnings=$warnings.ToArray();ColdStartTested=$false;ReconnectRequested=[bool]$ReconnectGsx;DisconnectObserved=$disconnectObserved;ReturnObserved=$returnObserved;PhysicalReconnectObserved=($disconnectObserved -and $returnObserved);ReconnectTested=$false;ManagedReconnectRecoveryTested=$false;AutomaticRestore=$false;StartupPolicy='Explicit current diagnostic snapshot only';Stages=$events.ToArray()}
     $summary | ConvertTo-Json -Depth 12 | Set-Content (Join-Path $reportRoot 'summary.json') -Encoding UTF8
     Write-Output ('GSX initialization reports: '+$reportRoot)
 }

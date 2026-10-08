@@ -89,6 +89,56 @@ Check 'Failed initialization and control checks cannot be masked by audio' {
 }
 Check 'Unknown audio outcome cannot become success' { Equal (Get-GsxInitializationOutcome $true $true 'Passed' 'Passed' 'Passed' 'Unknown' $true $true $false $false) 'Failed' }
 Check 'Missing preparation cannot become success' { Equal (Get-GsxInitializationOutcome $false $true 'Passed' 'Passed' 'Passed' 'Passed' $true $true $false $false) 'Failed' }
+function RecoverySnapshot([bool]$Missing=$false) {
+    $status=if($Missing){'Unavailable'}else{'Available'}
+    $errorType=if($Missing){'WaitHandleCannotBeOpenedException'}else{$null}
+    [pscustomobject]@{Controls=@(
+        [pscustomobject]@{DeviceIdentity=$identity;Audio=[pscustomobject]@{Status='Available'};Playback=[pscustomobject]@{Status=$status;ErrorType=$errorType}},
+        [pscustomobject]@{DeviceIdentity=$identity.Replace('|Playback','|Microphone');Audio=[pscustomobject]@{Status='Available'};Microphone=[pscustomobject]@{Status=$status;ErrorType=$errorType}}
+    )}
+}
+Check 'Available processing while held needs no recovery' { Equal (Test-GsxVendorRecoveryRequired (RecoverySnapshot) (RecoverySnapshot)) $false }
+Check 'Minimized post-release trace requires vendor recovery despite live audio endpoints' { Equal (Test-GsxVendorRecoveryRequired (RecoverySnapshot) (RecoverySnapshot $true)) $true }
+Check 'Recovery refuses replacement physical devices' {
+    $now=RecoverySnapshot $true; foreach ($row in $now.Controls) { $row.DeviceIdentity=$row.DeviceIdentity.Replace('TEST','OTHER') }
+    Refuses { Test-GsxVendorRecoveryRequired (RecoverySnapshot) $now }
+}
+Check 'Recovery refuses missing and duplicate current endpoints' {
+    $now=RecoverySnapshot $true; $now.Controls=@($now.Controls[0]); Refuses { Test-GsxVendorRecoveryRequired (RecoverySnapshot) $now }
+    $now=RecoverySnapshot $true; $now.Controls+=@($now.Controls[0]); Refuses { Test-GsxVendorRecoveryRequired (RecoverySnapshot) $now }
+}
+Check 'Recovery refuses ambiguous baseline or mixed physical pair' {
+    $prior=RecoverySnapshot; $prior.Controls+=@($prior.Controls[0]); Refuses { Test-GsxVendorRecoveryRequired $prior (RecoverySnapshot $true) }
+    $prior=RecoverySnapshot; $prior.Controls[1].DeviceIdentity=$prior.Controls[1].DeviceIdentity.Replace('TEST','OTHER'); Refuses { Test-GsxVendorRecoveryRequired $prior (RecoverySnapshot $true) }
+}
+Check 'Recovery refuses disconnected audio endpoints before service restart' {
+    $now=RecoverySnapshot $true; $now.Controls[0].Audio.Status='Unavailable'; Refuses { Test-GsxVendorRecoveryRequired (RecoverySnapshot) $now }
+}
+Check 'Recovery requires a readable saved starting state' { Refuses { Test-GsxVendorRecoveryRequired (RecoverySnapshot $true) (RecoverySnapshot $true) } }
+Check 'Recovery refuses partial or unknown processing failures' {
+    $now=RecoverySnapshot $true; $now.Controls[0].Playback.Status='Available'; Refuses { Test-GsxVendorRecoveryRequired (RecoverySnapshot) $now }
+    $now=RecoverySnapshot $true; $now.Controls[0].Playback.ErrorType='UnauthorizedAccessException'; Refuses { Test-GsxVendorRecoveryRequired (RecoverySnapshot) $now }
+}
+function VendorOwners([int]$ProcessId=123,[string]$ProcessName='EPOSGamingSuiteService',[string]$ProductId='0098') {
+    foreach ($suffix in @('memory','mutex','event')) { [pscustomobject]@{ProcessId=$ProcessId;ProcessName=$ProcessName;HandleCount=1;ObjectName=('Global\CF4B411F-BE2B-4D84-8106-EC27CA0F8F05_1395_'+$ProductId+'_'+$suffix)} }
+}
+Check 'Handoff requires the current vendor service to hold all three objects' { Equal (Test-ApoVendorHandoffReady @(VendorOwners) 123) $true }
+Check 'Service Running and helper/audio-engine ownership alone cannot prove handoff' {
+    Equal (Test-ApoVendorHandoffReady @() 123) $false
+    Equal (Test-ApoVendorHandoffReady @(VendorOwners 123 'Timbre.Host') 123) $false
+    Equal (Test-ApoVendorHandoffReady @(VendorOwners 124 'audiodg') 123) $false
+}
+Check 'Handoff refuses stale service PID, partial handles and split process ownership' {
+    Equal (Test-ApoVendorHandoffReady @(VendorOwners) 124) $false
+    $owners=@(VendorOwners); Equal (Test-ApoVendorHandoffReady @($owners[0],$owners[1]) 123) $false
+    $owners[2].ProcessId=124; Equal (Test-ApoVendorHandoffReady $owners 123) $false
+    Equal (Test-ApoVendorHandoffReady @(VendorOwners) 0) $false
+}
+Check 'Handoff rejects empty handles and another model namespace' {
+    $owners=@(VendorOwners); $owners[2].HandleCount=0; Equal (Test-ApoVendorHandoffReady $owners 123) $false
+    Equal (Test-ApoVendorHandoffReady @(VendorOwners 123 'EPOSGamingSuiteService' '009f') 123) $false
+}
+Check 'B20 handoff can be inspected independently with its exact namespace' { Equal (Test-ApoVendorHandoffReady @(VendorOwners 123 'EPOSGamingSuiteService' '009f') 123 '009f') $true }
 $failures=@($checks | Where-Object { !$_.Passed })
 $path=[IO.Path]::GetFullPath($ReportPath)
 [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path)) | Out-Null
