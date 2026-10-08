@@ -2,7 +2,7 @@
 
 Historical record of the completed 2026-10-07 remote-work pass. Statements below describe that pass; subsequent listening, B20 reconnect/audio, and GSX initialization results are summarized in [current validation status](../validation/status.md). Referenced artifacts remain local and are not included in Git.
 
-Goal started on 2026-10-07: complete the remaining core EPOS Control work that can be implemented and verified without physical access to the B20/GSX 300. Current baseline: 477 regressions, 109 WPF scenarios and a verified portable package. Existing device settings and named profiles must be preserved during live checks.
+Goal started on 2026-10-07: complete the remaining core Timbre work that can be implemented and verified without physical access to the B20/GSX 300. Current baseline: 477 regressions, 109 WPF scenarios and a verified portable package. Existing device settings and named profiles must be preserved during live checks.
 
 ## Work to complete remotely
 

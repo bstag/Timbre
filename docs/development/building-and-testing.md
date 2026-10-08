@@ -14,10 +14,10 @@ Run from the repository root:
 
 ```powershell
 .\tools\Build-App.ps1
-.\dist\EposControl.exe --demo
+.\dist\Timbre.exe --demo
 ```
 
-Build produces `dist/EposControl.exe` and the separate experimental helper under `dist/host`. These outputs are ignored. `Start-EPOS-Control.cmd` requires a successful build; it is not a prebuilt download.
+Build produces `dist/Timbre.exe` and the separate experimental helper under `dist/host`. These outputs are ignored. `Start-Timbre.cmd` requires a successful build; it is not a prebuilt download.
 
 Close a running copy from `dist` before rebuilding into that directory; Windows locks its loaded DLLs. For verification while keeping the live app open, use a separate source checkout/copy.
 

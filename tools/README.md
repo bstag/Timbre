@@ -30,4 +30,4 @@ See [building/testing](../docs/development/building-and-testing.md) and [releasi
 - `Read-B20InputState.ps1` and `Read-B20SynchronousStatus.ps1`: experimental pickup-status queries; they send USB requests.
 - `GsxSidetoneProbe/`: guarded research query/setter; `--self-test` is offline and is included in normal verification.
 
-Diagnostics can contain machine/device identifiers. Add only reviewed, sanitized evidence to [fixtures](../tests/EposControl.Tests/Fixtures/README.md), and preserve pinned hashes. A captured value, live readback, listening result, and startup/DSP result establish different things.
+Diagnostics can contain machine/device identifiers. Add only reviewed, sanitized evidence to [fixtures](../tests/Timbre.Tests/Fixtures/README.md), and preserve pinned hashes. A captured value, live readback, listening result, and startup/DSP result establish different things.

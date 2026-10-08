@@ -1,6 +1,6 @@
-# Why EPOS Control exists
+# Why Timbre exists
 
-I started EPOS Control to keep using hardware I already owned and to understand how it works on Windows. This background was recorded on 2026-10-08; the [validation status](validation/status.md) describes what the implementation currently establishes.
+I started Timbre to keep using hardware I already owned and to understand how it works on Windows. This background was recorded on 2026-10-08; the [validation status](validation/status.md) describes what the implementation currently establishes.
 
 ## Keep useful hardware useful
 

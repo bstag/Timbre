@@ -20,7 +20,7 @@ if (!$RunDirectory.StartsWith($pilotBase+[IO.Path]::DirectorySeparatorChar,[Stri
 $preparation=Get-Content -LiteralPath (Join-Path $RunDirectory 'preparation.json') -Raw | ConvertFrom-Json
 $startup=Join-Path $RunDirectory 'startup-state.json'
 $isolatedState=Join-Path $RunDirectory 'isolated-state'
-$hostExe=Join-Path $workspace 'dist\host\EposControl.Host.exe'
+$hostExe=Join-Path $workspace 'dist\host\Timbre.Host.exe'
 if (!(Test-Path -LiteralPath $hostExe) -or !(Test-Path -LiteralPath $startup)) { throw 'Prepared helper binaries or startup snapshot are missing.' }
 if ((Get-InputHash $preparation.MappedRestoreSource) -ne $preparation.OriginalStateHash) {
     throw 'Your saved B20 settings changed since preparation. Ask for a fresh prepared check; no helper was started.'
@@ -33,7 +33,7 @@ if ($saved.DeviceIdentity -ne ('1395|009F|Microphone|'+$preparation.DeviceInstan
 $preferencePattern='("RestoreOnConnect"\s*:\s*)(true|false)\b'
 if ([regex]::Matches($savedRaw,$preferencePattern).Count -ne 1) { throw 'Unexpected saved restore-preference layout.' }
 if ((Get-Service EPOSGamingSuiteService).Status -ne 'Stopped') { throw 'Leave EPOSGamingSuiteService stopped for this check.' }
-if (@(Get-Process -Name EposControl.Host -ErrorAction SilentlyContinue).Count) { throw 'A helper is already running; do not start a competing check.' }
+if (@(Get-Process -Name Timbre.Host,EposControl.Host -ErrorAction SilentlyContinue).Count) { throw 'A helper is already running; do not start a competing check.' }
 $runId=[Guid]::NewGuid().ToString('N').Substring(0,8)
 $reportDirectory=Join-Path $RunDirectory ('host-admin-'+$runId)
 $stopFile=Join-Path $RunDirectory 'stop-host'

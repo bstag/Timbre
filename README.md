@@ -1,4 +1,6 @@
-# EPOS Control
+# Timbre
+
+Audio controls and profiles for hardware worth keeping.
 
 A Windows desktop control app for EPOS B20 microphones and GSX 300 sound cards. It provides device volume/mute, supported processing controls, live activity views, and device/setup profiles through a native WPF interface.
 
@@ -6,7 +8,7 @@ This is an experimental personal project developed with the help of coding agent
 
 ## Why I built this
 
-I started EPOS Control because EPOS was winding down its gaming portfolio and I had trouble getting Gaming Suite from its website. I already had a working installation on another machine, and I wanted to keep using my B20 and GSX 300 even if downloads or vendor support became harder to obtain. I was also seeing these products still for sale at much lower prices than their original prices. Useful hardware should have a future beyond the availability of its original control software. [EPOS's portfolio announcement](https://www.eposaudio.com/en/na/gaming)
+I started Timbre because EPOS was winding down its gaming portfolio and I had trouble getting Gaming Suite from its website. I already had a working installation on another machine, and I wanted to keep using my B20 and GSX 300 even if downloads or vendor support became harder to obtain. I was also seeing these products still for sale at much lower prices than their original prices. Useful hardware should have a future beyond the availability of its original control software. [EPOS's portfolio announcement](https://www.eposaudio.com/en/na/gaming)
 
 The investigation revealed something I had missed on my own PC: my GSX 300 was using a generic USB audio driver. Basic sound worked, but the EPOS processing path and a whole group of features were missing. Selecting the compatible EPOS driver and rebooting exposed capabilities I had not realized I was missing, including the processing and surround features later confirmed by listening.
 
@@ -27,6 +29,8 @@ The analog GSP 301 uses the GSX 300 endpoints when plugged into that sound card.
 
 Device profiles save one audio page. Setup profiles save selected pages across devices. Live edits apply by default; named profiles change only when explicitly saved. Microphone/playback activity is opt-in and saves no recordings.
 
+Timbre stores profiles, setups, and processing state under `%LOCALAPPDATA%\Timbre`. This rename starts with fresh settings; it does not import or delete data from the previous `%LOCALAPPDATA%\EPOS-Control` folder.
+
 ## Build and run
 
 Use 64-bit Windows, 64-bit PowerShell, and a .NET 9 SDK with Windows Desktop support. Running a framework-dependent build requires the .NET 9 Desktop Runtime for Windows x64. No external NuGet packages are required; `NuGet.Config` clears package sources.
@@ -35,13 +39,13 @@ A source checkout does not include `dist`. Build it first:
 
 ```powershell
 .\tools\Build-App.ps1
-.\Start-EPOS-Control.cmd
+.\Start-Timbre.cmd
 ```
 
 To try the interface without EPOS hardware:
 
 ```powershell
-.\dist\EposControl.exe --demo
+.\dist\Timbre.exe --demo
 ```
 
 For a portable ZIP, extract the whole package and follow its `START-HERE.md`. The package requires the Desktop Runtime and compatible EPOS components for advanced controls.

@@ -33,7 +33,7 @@ For a repository with no commits yet:
 git add .
 git diff --cached --check
 git diff --cached --stat
-git commit -m "Initial EPOS Control source"
+git commit -m "Initial Timbre source"
 ```
 
 After creating an empty repository in your GitHub account, add its actual clone URL as `origin`, then push the local `main` branch. Avoid creating a separate remote README/license when the local initial commit already contains them. Keep generated ZIPs for a GitHub Release after source verification rather than force-adding them to Git.

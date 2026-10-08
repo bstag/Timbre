@@ -6,7 +6,7 @@ Implemented 2026-10-06 as an explicit console-helper experiment. The existing EP
 
 ## Evidence
 
-The initialization milestone passed **234 regression checks and 19 WPF scenarios**, without warnings. Thirty-six checks were added beyond the retention milestone. Native tests use unique `Local\EposControl.Tests.*` names, never actual EPOS objects. They verify fresh memory byte for byte, object ACLs, manual-reset event behavior, all six partial-set combinations, incompatible layout/type rejection, locking, lifetime and device-bound startup input. The real control transport applies/restores settings against the isolated native objects while preserving unowned bytes. The subsequent [processing persistence milestone](../user-guide/processing-state.md) brought source to 258 checks and 25 WPF scenarios; the subsequent [managed lifecycle](b20-host-lifecycle.md) brought that milestone to 286 checks and 25 scenarios.
+The initialization milestone passed **234 regression checks and 19 WPF scenarios**, without warnings. Thirty-six checks were added beyond the retention milestone. Native tests use unique `Local\Timbre.Tests.*` names, never actual EPOS objects. They verify fresh memory byte for byte, object ACLs, manual-reset event behavior, all six partial-set combinations, incompatible layout/type rejection, locking, lifetime and device-bound startup input. The real control transport applies/restores settings against the isolated native objects while preserving unowned bytes. The subsequent [processing persistence milestone](../user-guide/processing-state.md) brought source to 258 checks and 25 WPF scenarios; the subsequent [managed lifecycle](b20-host-lifecycle.md) brought that milestone to 286 checks and 25 scenarios.
 
 The revised read-only live check passed: `artifacts/apo-host/20261006-113517-d3f65e93`. Fresh startup also correctly refused the running EPOS service without readiness or setting writes: `artifacts/apo-host/initializer-guard-cfc1392c40774faa84550a99ac05713b`.
 
@@ -16,7 +16,7 @@ This proves fresh shared-object creation and control operation in this warm Wind
 
 ## Golden and ownership
 
-`tools/Recover-ApoInitializer.ps1` verifies the inspected service image's hash, then reads its static instructions and −120 float constant without loading/executing vendor code. It independently recovers all 60 initializer writes. Reviewed output is in `tests/EposControl.Tests/Fixtures/apo-cold-initializer-009f.bin` and `.json`, both protected by the fixture SHA256 manifest. Binary hash: `2B358E0D9F812EF8E26FC061A8A023DC55B07566B8AB6F4E7AD6EEBE7AE153F4`.
+`tools/Recover-ApoInitializer.ps1` verifies the inspected service image's hash, then reads its static instructions and −120 float constant without loading/executing vendor code. It independently recovers all 60 initializer writes. Reviewed output is in `tests/Timbre.Tests/Fixtures/apo-cold-initializer-009f.bin` and `.json`, both protected by the fixture SHA256 manifest. Binary hash: `2B358E0D9F812EF8E26FC061A8A023DC55B07566B8AB6F4E7AD6EEBE7AE153F4`.
 
 This golden represents the recovered initializer on a fresh zeroed page, **not a live cold-start capture**. Logical size is 2112 bytes; the mapped view is 4096 bytes. [Native defaults and source addresses](apo-control-host.md#native-initialization-recovered-for-the-next-milestone).
 

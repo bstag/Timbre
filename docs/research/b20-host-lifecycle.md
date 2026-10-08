@@ -6,7 +6,7 @@ The helper can now read the app's typed processing store and recover an observed
 
 ## Behavior
 
-`--manage-b20` requires an explicit physical USB instance, a device-matched diagnostic startup file, a processing-state directory, an empty report directory, a stop file and a 30–600 second duration. The app's live state directory is `%LOCALAPPDATA%\EPOS-Control\processing-state`; the administrator pilot instead uses a private directory under its reports.
+`--manage-b20` requires an explicit physical USB instance, a device-matched diagnostic startup file, a processing-state directory, an empty report directory, a stop file and a 30–600 second duration. The app's live state directory is `%LOCALAPPDATA%\Timbre\processing-state`; the administrator pilot instead uses a private directory under its reports.
 
 | Situation | Action |
 | --- | --- |
@@ -31,6 +31,8 @@ The production connector rechecks the service immediately before processing Appl
 ## Ownership and reports
 
 Initializers and managed helpers acquire `Global\EposControl.B20Host.v1` on their control thread. A competing process is rejected. A crashed owner's abandoned lock can be reacquired; the connection still validates existing native state and refuses partial or corrupt objects. Read-only retention helpers can coexist because they never initialize or restore settings. The owner lock uses the creating account's Windows default security; cross-account/service-account access has not been established and must be designed before service installation.
+
+The pre-Timbre lock identifier remains unchanged so old and renamed helpers still exclude each other. It is an interoperability identifier, not the app's current product name.
 
 `starting.json` records managed configuration. `heartbeat.json` describes current state, endpoint, processing, generation, retry count and error. `ready.json` records the first successful connection; use heartbeat for current availability after that point. `connection-0001.json`, etc. record each new connection generation and its actual restore source: `LastSavedProcessing`, `ExplicitSnapshot` or `None`. `stopped.json` records shutdown/result. Startup `SettingsWrites` means a restore transaction was requested for that generation, not continuous writes on every heartbeat.
 

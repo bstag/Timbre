@@ -6,10 +6,10 @@ $StartupState=[IO.Path]::GetFullPath($StartupState)
 $ReportDirectory=[IO.Path]::GetFullPath($ReportDirectory)
 if (Test-Path -LiteralPath $ReportDirectory) { throw 'Choose a fresh report directory.' }
 if ((Get-Service Audiosrv).Status -ne 'Running' -or (Get-Service EPOSGamingSuiteService).Status -ne 'Running') { throw 'This read-only preparation test requires both services Running.' }
-if (@(Get-Process EposControl.Host -ErrorAction SilentlyContinue).Count) { throw 'Close existing experimental helpers first.' }
+if (@(Get-Process Timbre.Host,EposControl.Host -ErrorAction SilentlyContinue).Count) { throw 'Close existing experimental helpers first.' }
 New-Item -ItemType Directory -Path $ReportDirectory | Out-Null
 $startup=Get-Content -LiteralPath $StartupState -Raw | ConvertFrom-Json
-$hostExe=Join-Path $root 'dist\host\EposControl.Host.exe'
+$hostExe=Join-Path $root 'dist\host\Timbre.Host.exe'
 $runs=[Collections.Generic.List[object]]::new()
 function Launch([string]$name) {
     $dir=Join-Path $ReportDirectory $name

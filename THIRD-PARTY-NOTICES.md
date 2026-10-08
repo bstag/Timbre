@@ -1,6 +1,6 @@
 # Third-party notices and evidence provenance
 
-The MIT license applies to original EPOS Control code and documentation. It does not grant rights to third-party software, images, trademarks, or vendor-derived material.
+The MIT license applies to original Timbre code and documentation. It does not grant rights to third-party software, images, trademarks, or vendor-derived material.
 
 ## EPOS components
 
@@ -10,7 +10,7 @@ Local preservation copies are excluded by `.gitignore`. Redistribution permissio
 
 ## Research fixtures
 
-The [fixture inventory](tests/EposControl.Tests/Fixtures/README.md) records what each capture represents and how it was obtained. The [manifest](tests/EposControl.Tests/Fixtures/manifest.json) pins fixture hashes; tests do not regenerate it.
+The [fixture inventory](tests/Timbre.Tests/Fixtures/README.md) records what each capture represents and how it was obtained. The [manifest](tests/Timbre.Tests/Fixtures/manifest.json) pins fixture hashes; tests do not regenerate it.
 
 - Binary APO fixtures are captured control-state buffers or documented initializer output, not recordings or redistributed vendor executables.
 - B20 topology JSON is sanitized to remove source-machine endpoint/device prefixes while retaining control values and topology relationships.

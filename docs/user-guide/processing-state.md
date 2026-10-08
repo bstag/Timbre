@@ -4,7 +4,7 @@ The app now saves its own last successfully applied B20 processing state. This i
 
 ## Using it
 
-1. Reopen `Start-EPOS-Control.cmd`, select B20 and choose **Apply processing**. A successful device transaction saves its verified readback.
+1. Reopen `Start-Timbre.cmd`, select B20 and choose **Apply processing**. A successful device transaction saves its verified readback.
 2. **Restore saved processing** explicitly restores that state whenever the processing interface is available.
 3. Optionally check **Restore processing when this B20 connects or the app starts**. This preference defaults to off. Turning it on schedules restoration for the next observed connection or app launch; it does not immediately change processing.
 
@@ -14,7 +14,7 @@ The app discovers connection changes every two seconds. An opted-in B20 can rest
 
 ## Storage and identity
 
-Live files are under `%LOCALAPPDATA%\EPOS-Control\processing-state`. Each physical B20 has a SHA256-named JSON file and a companion lock file. Demo and rendered verification use separate directories and cannot modify live state. Named profiles now live in `%LOCALAPPDATA%\EPOS-Control\profiles.json`, with import from the earlier app-directory file when the new destination is absent. See [profiles and live controls](profiles-and-live-controls.md). Live processing edits update this last-applied B20 state after successful apply; they do not change named profiles until explicitly saved.
+Live files are under `%LOCALAPPDATA%\Timbre\processing-state`. Each physical B20 has a SHA256-named JSON file and a companion lock file. Demo and rendered verification use separate directories and cannot modify live state. Named profiles now live in `%LOCALAPPDATA%\Timbre\profiles.json`; Timbre startup performs no automatic import from earlier app data. See [profiles and live controls](profiles-and-live-controls.md). Live processing edits update this last-applied B20 state after successful apply; they do not change named profiles until explicitly saved.
 
 Schema version 1 stores:
 
@@ -39,7 +39,7 @@ Unknown versions/fields, missing required fields, malformed or oversized files, 
 
 ## Verification and limits
 
-The persistence milestone passed **258 regression checks and 25 WPF scenarios**, without warnings. The subsequent [managed-helper milestone](../research/b20-host-lifecycle.md) brought that milestone to 286 checks and 25 scenarios. See [current validation status](../validation/status.md) for later verification. Twenty-four persistence cases cover storage reload, physical identity, changed endpoint GUIDs/names, unsupported endpoints, strict schema validation, partial states, failed applies/saves, last-good preservation, bounded lock contention, concurrent preference/settings writers and once-per-connection restoration. The native persistence test destroys and recreates unique `Local\EposControl.Tests.*` objects, then restores saved controls through the real memory/event transport and compares every byte with the independent initializer golden plus verified patches.
+The persistence milestone passed **258 regression checks and 25 WPF scenarios**, without warnings. The subsequent [managed-helper milestone](../research/b20-host-lifecycle.md) brought that milestone to 286 checks and 25 scenarios. See [current validation status](../validation/status.md) for later verification. Twenty-four persistence cases cover storage reload, physical identity, changed endpoint GUIDs/names, unsupported endpoints, strict schema validation, partial states, failed applies/saves, last-good preservation, bounded lock contention, concurrent preference/settings writers and once-per-connection restoration. The native persistence test destroys and recreates unique `Local\Timbre.Tests.*` objects, then restores saved controls through the real memory/event transport and compares every byte with the independent initializer golden plus verified patches.
 
 Six new WPF scenarios verify durable processing state/default policy, pending-edit isolation, manual restore, opt-in reconnect restoration, hardware-success/save-failure reporting and control visibility. Reports are `artifacts/tests.json` and `artifacts/app-preview.png.json`. All new tests use isolated storage and demo/private objects; they do not change the real B20, Gaming Suite or its service.
 

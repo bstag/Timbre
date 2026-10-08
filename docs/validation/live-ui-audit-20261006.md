@@ -2,7 +2,7 @@
 
 Dated validation record. See [current validation status](status.md) for later results. Referenced artifacts are local evidence excluded from the repository.
 
-The audit exercised the installed EPOS Control app on this PC with the physical **B20** and **GSX 300** connected and Gaming Suite running. It combined actual mouse/keyboard/accessibility interactions with independent reads through the existing native adapters. Hardware checks changed controls briefly and restored their starting settings. No audio recordings, service shutdown, driver replacement, unplug/replug or reboot was performed.
+The audit exercised the installed Timbre app on this PC with the physical **B20** and **GSX 300** connected and Gaming Suite running. It combined actual mouse/keyboard/accessibility interactions with independent reads through the existing native adapters. Hardware checks changed controls briefly and restored their starting settings. No audio recordings, service shutdown, driver replacement, unplug/replug or reboot was performed.
 
 Evidence is under `artifacts/live-ui-audit-20261006`. Starting APO buffers are `artifacts/audit-b20-before.bin` and `audit-gsx-before.bin`; original user files were copied into the audit's `userdata-before` directory. These artifacts contain device identities and local settings and should remain outside distribution packages.
 

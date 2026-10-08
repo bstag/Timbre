@@ -6,14 +6,14 @@ Push-Location $root
 try {
     if (!$SkipBuild) {
         & (Join-Path $PSScriptRoot 'Build-App.ps1')
-        dotnet restore tests/EposControl.Tests --configfile NuGet.Config --nologo -v quiet
+        dotnet restore tests/Timbre.Tests --configfile NuGet.Config --nologo -v quiet
         if ($LASTEXITCODE) { throw 'Test restore failed' }
-        dotnet build tests/EposControl.Tests --no-restore -c Release --nologo -v quiet
+        dotnet build tests/Timbre.Tests --no-restore -c Release --nologo -v quiet
         if ($LASTEXITCODE) { throw 'Test build failed' }
         dotnet build tools/GsxSidetoneProbe -c Release --configfile NuGet.Config --nologo -v quiet
         if ($LASTEXITCODE) { throw 'GSX research probe build failed' }
     }
-    $testDll=Join-Path $root 'tests/EposControl.Tests/bin/Release/net9.0/EposControl.Tests.dll'
+    $testDll=Join-Path $root 'tests/Timbre.Tests/bin/Release/net9.0/Timbre.Tests.dll'
     dotnet $testDll --report artifacts/tests.json --junit artifacts/tests.xml
     if ($LASTEXITCODE) { throw 'Regression tests failed; see artifacts/tests.json' }
     $gsxProbe=Join-Path $root 'tools/GsxSidetoneProbe/bin/Release/net9.0/GsxSidetoneProbe.dll'
@@ -22,7 +22,7 @@ try {
         dotnet $gsxProbe --self-test
         if ($LASTEXITCODE) { throw 'GSX research guard tests failed' }
     } elseif ($SkipBuild) { Write-Warning 'GSX research guard checks skipped: build tools/GsxSidetoneProbe first.' }
-    & (Join-Path $root 'dist/EposControl.exe') --render-demo (Join-Path $root 'artifacts/app-preview.png') | Out-Null
+    & (Join-Path $root 'dist/Timbre.exe') --render-demo (Join-Path $root 'artifacts/app-preview.png') | Out-Null
     if ($LASTEXITCODE) { throw 'WPF UI tests failed; see dist/startup-error.txt' }
     if ($HardwareEffects) {
         # Explicit opt-in: changes gate/filter, switches and EQ, then restores their starting values.

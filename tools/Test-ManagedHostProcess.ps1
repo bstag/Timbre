@@ -2,7 +2,7 @@
 param()
 $ErrorActionPreference='Stop'
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$hostExe=Join-Path $root 'dist\host\EposControl.Host.exe'
+$hostExe=Join-Path $root 'dist\host\Timbre.Host.exe'
 if (!(Test-Path -LiteralPath $hostExe)) { throw 'Build first with tools/Test-App.ps1.' }
 $reportRoot=Join-Path $root ('artifacts\apo-host\managed-process-'+[Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $reportRoot | Out-Null

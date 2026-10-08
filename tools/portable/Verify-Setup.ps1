@@ -19,8 +19,8 @@ foreach($entry in $manifest.Files) {
 }
 $reports=Join-Path $packageRoot ('reports\'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,8))
 New-Item -ItemType Directory -Path $reports -Force | Out-Null
-$testDll=Join-Path $packageRoot 'checks\EposControl.Tests.dll'
-$app=Join-Path $packageRoot 'app\EposControl.exe'
+$testDll=Join-Path $packageRoot 'checks\Timbre.Tests.dll'
+$app=Join-Path $packageRoot 'app\Timbre.exe'
 & $dotnet $testDll --report (Join-Path $reports 'tests.json') --junit (Join-Path $reports 'tests.xml')
 if ($LASTEXITCODE) { throw ('Regression checks failed. See '+$reports) }
 & $app --render-demo (Join-Path $reports 'app-preview.png') | Out-Null

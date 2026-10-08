@@ -2,7 +2,7 @@
 param([switch]$StopSuiteTemporarily)
 $ErrorActionPreference='Stop'
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$testDll=Join-Path $root 'tests\EposControl.Tests\bin\Release\net9.0\EposControl.Tests.dll'
+$testDll=Join-Path $root 'tests\Timbre.Tests\bin\Release\net9.0\Timbre.Tests.dll'
 $reportRoot=Join-Path $root ('artifacts\dependencies\'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss'))
 New-Item -ItemType Directory -Path $reportRoot -Force | Out-Null
 $service=Get-Service -Name EPOSGamingSuiteService

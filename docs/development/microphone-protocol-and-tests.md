@@ -35,7 +35,7 @@ Suite's high-pass-off action also reapplied cached gate/filter values. The rever
 
 Warm and Clear constants came from `GamingSuite.UI.Services.Constants.Constant`, using `round(knob / 127 * 6, 2)`. Both nine-value curves match Suite captures exactly. On 2026-10-05 the user supplied a Gaming Suite microphone-EQ screenshot identifying the nine labels, left to right: **64 Hz, 125 Hz, 250 Hz, 500 Hz, 1 kHz, 2 kHz, 4 kHz, 8 kHz, 16 kHz**. The app now uses those labels for the already mapped EQ band order. This establishes the vendor UI frequency mapping; it is not a measurement of filter center frequency, bandwidth, or response. The first label is 64 Hz as shown, not an assumed 63 Hz. Internal speech-compressor and direction-dependent fields remain untouched.
 
-The [original screenshot](../../tests/EposControl.Tests/Fixtures/b20-eq-frequencies.png) and [transcribed mapping](../../tests/EposControl.Tests/Fixtures/b20-eq-frequency-map.json) are pinned in the fixture SHA256 manifest. A regression checks the label/field order against that mapping, and the WPF check verifies actual slider labels and accessibility names.
+The [original screenshot](../../tests/Timbre.Tests/Fixtures/b20-eq-frequencies.png) and [transcribed mapping](../../tests/Timbre.Tests/Fixtures/b20-eq-frequency-map.json) are pinned in the fixture SHA256 manifest. A regression checks the label/field order against that mapping, and the WPF check verifies actual slider labels and accessibility names.
 
 On the same date, the user reported that the noise filter and high-pass work and that the EQ presets make an audible difference. Those controls now have manual listening confirmation in addition to state readback and rollback tests. The listening setup, filter levels and preset choices were not recorded; this confirmation does not establish a measured transfer function or a complete per-band response. Local record: `artifacts/b20-processing-listening-confirmation.json`. Formal frequency-response and noise-suppression measurements remain optional deeper validation, rather than a pending basic listening check.
 
@@ -91,7 +91,7 @@ The first direct HID adapter is the experimental B20 physical pickup-pattern rea
 
 ## Fixture maintenance
 
-`tests/EposControl.Tests/Fixtures` contains captured control buffers and a hash manifest, with no vendor executable, recording, or USB serial. Every buffer is documented in its README. Do not regenerate goldens to make a failure pass. Record a new one-control-at-a-time capture, explain the changed layout or behavior, and review the exact byte diff before updating expectations and hashes.
+`tests/Timbre.Tests/Fixtures` contains captured control buffers and a hash manifest, with no vendor executable, recording, or USB serial. Every buffer is documented in its README. Do not regenerate goldens to make a failure pass. Record a new one-control-at-a-time capture, explain the changed layout or behavior, and review the exact byte diff before updating expectations and hashes.
 
 Read-only local captures:
 

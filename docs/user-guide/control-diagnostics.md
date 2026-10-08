@@ -1,6 +1,6 @@
 # Read-only control diagnostics
 
-The Diagnostics button and `EposControl.exe --diagnostics report.json` export the same control availability report. The portable verifier saves it as `reports/<run>/devices.json` and prints each endpoint's availability. Missing controls have startup, permissions, busy-interface or incompatible-state reasons.
+The Diagnostics button and `Timbre.exe --diagnostics report.json` export the same control availability report. The portable verifier saves it as `reports/<run>/devices.json` and prints each endpoint's availability. Missing controls have startup, permissions, busy-interface or incompatible-state reasons.
 
 Schema version 1 retains top-level `Endpoints` and adds `Controls`, keyed by endpoint ID. Each row includes a fresh Windows audio read, model-appropriate microphone/playback/sidetone probes and feature availability. Each probe has `Status`, `Value`, `ErrorType` and `Reason`:
 

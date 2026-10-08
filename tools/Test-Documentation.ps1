@@ -14,7 +14,7 @@ if ($PortablePackage) {
 } else {
     $documents = @(Get-ChildItem -LiteralPath $Root -File -Filter '*.md') +
         @(Get-ChildItem -LiteralPath (Join-Path $Root 'docs') -File -Filter '*.md' -Recurse) +
-        @(Get-Item -LiteralPath (Join-Path $Root 'tests/README.md'), (Join-Path $Root 'tests/EposControl.Tests/Fixtures/README.md'),
+        @(Get-Item -LiteralPath (Join-Path $Root 'tests/README.md'), (Join-Path $Root 'tests/Timbre.Tests/Fixtures/README.md'),
             (Join-Path $Root 'tools/README.md'), (Join-Path $Root 'tools/portable/START-HERE.md'))
 }
 $failures = [Collections.Generic.List[string]]::new()

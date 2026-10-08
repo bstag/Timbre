@@ -6,7 +6,7 @@ The app now provides Stereo (2.0), virtual 7.1, nine-band custom playback EQ, an
 
 The compact Sound studio now overlays the configured/draft EQ curve with opt-in live playback activity. Check Live activity for Windows output-mix RMS, peak and nine frequency regions; click a band to open its EQ slider. Capture stops on selection changes or shutdown, saves no recording and never changes profiles or sound controls. Its position relative to vendor processing is unverified; the chart is not a measured EQ/surround response. Native quiet-tone detection passed without changing Windows controls or either device's processing buffer. See [playback activity and evidence](../user-guide/live-playback-view.md).
 
-Profiles save the currently applied mode, EQ, reverb, volume and mute in `%LOCALAPPDATA%\EPOS-Control\profiles.json`. Live saves finish queued edits first; manual drafts are excluded. Save to selected updates the chosen profile without renaming it. Playback profiles remain isolated from microphone profiles and other USB instances. Earlier profiles without playback effects preserve current mode/EQ/reverb; older playback snapshots without reverb preserve its switch/amount. GSX processing does not yet have automatic startup/reconnect restore or a managed helper. See [profile storage and live control behavior](../user-guide/profiles-and-live-controls.md).
+Profiles save the currently applied mode, EQ, reverb, volume and mute in `%LOCALAPPDATA%\Timbre\profiles.json`. Live saves finish queued edits first; manual drafts are excluded. Save to selected updates the chosen profile without renaming it. Playback profiles remain isolated from microphone profiles and other USB instances. Earlier profiles without playback effects preserve current mode/EQ/reverb; older playback snapshots without reverb preserve its switch/amount. GSX processing does not yet have automatic startup/reconnect restore or a managed helper. See [profile storage and live control behavior](../user-guide/profiles-and-live-controls.md).
 
 ## Local control evidence, 2026-10-06
 
@@ -28,7 +28,7 @@ The first playback EQ band at +6 dB changed only float32 offset 76; the final ba
 | 8 | 8 kHz | 104 |
 | 9 | 16 kHz | 108 |
 
-The screenshot, captures and independent mapping are pinned in `tests/EposControl.Tests/Fixtures/manifest.json`. The native service source hash is `350D5EC4DEA1F6440C83DA82A0155AF1D7ACA02250E3F31EB7E3EBF472B8DD44`. Local static metadata/disassembly lives under `artifacts`; no vendor executable is packaged with these fixtures. User captures returned to exactly the original GSX Flat/stereo buffer. Selection/mode activity also changed B20 enable flags during the first observation; those unrelated changes were recorded separately, not attributed to GSX fields or written by our adapter.
+The screenshot, captures and independent mapping are pinned in `tests/Timbre.Tests/Fixtures/manifest.json`. The native service source hash is `350D5EC4DEA1F6440C83DA82A0155AF1D7ACA02250E3F31EB7E3EBF472B8DD44`. Local static metadata/disassembly lives under `artifacts`; no vendor executable is packaged with these fixtures. User captures returned to exactly the original GSX Flat/stereo buffer. Selection/mode activity also changed B20 enable flags during the first observation; those unrelated changes were recorded separately, not attributed to GSX fields or written by our adapter.
 
 The user could not find vendor sound presets in their current interface. Only custom EQ and our Flat reset are provided. Legacy five-band XML files are not used as nine-band curves.
 

@@ -12,11 +12,11 @@ if ($StopSuiteTemporarily) {
 }
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . (Join-Path $PSScriptRoot 'ApoRecoveryChecks.ps1')
-$hostExe=Join-Path $root 'dist\host\EposControl.Host.exe'
-$appExe=Join-Path $root 'dist\EposControl.exe'
-$testDll=Join-Path $root 'tests\EposControl.Tests\bin\Release\net9.0\EposControl.Tests.dll'
+$hostExe=Join-Path $root 'dist\host\Timbre.Host.exe'
+$appExe=Join-Path $root 'dist\Timbre.exe'
+$testDll=Join-Path $root 'tests\Timbre.Tests\bin\Release\net9.0\Timbre.Tests.dll'
 foreach ($path in @($hostExe,$appExe,$testDll)) { if (!(Test-Path -LiteralPath $path)) { throw 'Build the app, host and tests first.' } }
-if (@(Get-Process EposControl.Host -ErrorAction SilentlyContinue).Count) { throw 'Close the existing experimental helper before this test.' }
+if (@(Get-Process Timbre.Host,EposControl.Host -ErrorAction SilentlyContinue).Count) { throw 'Close the existing experimental helper before this test.' }
 $service=Get-Service EPOSGamingSuiteService
 if ($service.Status -ne 'Running') { throw 'Start the vendor service first to capture the current GSX settings.' }
 $audioService=Get-Service Audiosrv

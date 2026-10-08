@@ -8,7 +8,7 @@ These findings come from installed Gaming Suite 1.12.2.1185 managed code and ser
 
 The Suite selects a GSX-specific conversion instead of the B20 topology/dB path. `GetDeviceValue` indexes `SidetoneValueGSX300` with the slider position. Its change handler sends request type 6 and caches the result for the matching PID, VID and serial.
 
-The two recovered 256-entry int32 tables are pinned in `tests/EposControl.Tests/Fixtures/gsx-sidetone-ui-map.json`. They encode 58 distinct hardware bytes. UI positions 0, 64, 127, 128, 191 and 255 map to bytes 199, 222, 239, 239, 250 and 0. The inverse returns representative positions; quantization prevents exact UI-position round trips. Tests verify original PE-data hashes and round trips for every supported hardware byte.
+The two recovered 256-entry int32 tables are pinned in `tests/Timbre.Tests/Fixtures/gsx-sidetone-ui-map.json`. They encode 58 distinct hardware bytes. UI positions 0, 64, 127, 128, 191 and 255 map to bytes 199, 222, 239, 239, 250 and 0. The inverse returns representative positions; quantization prevents exact UI-position round trips. Tests verify original PE-data hashes and round trips for every supported hardware byte.
 
 These are opaque encoded values: acoustic units and mute semantics are unverified. Byte 0 must not be treated as mute. No USB reports were sent to obtain the tables.
 

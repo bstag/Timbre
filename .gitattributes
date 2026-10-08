@@ -10,5 +10,5 @@
 *.bin binary
 *.png binary
 # Golden hashes cover exact bytes, including JSON whitespace and line endings.
-tests/EposControl.Tests/Fixtures/** -text -whitespace
-tests/EposControl.Tests/Fixtures/README.md text eol=lf
+tests/Timbre.Tests/Fixtures/** -text -whitespace
+tests/Timbre.Tests/Fixtures/README.md text eol=lf

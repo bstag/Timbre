@@ -1,6 +1,6 @@
-# Using EPOS Control
+# Using Timbre
 
-Build a source checkout using the [build guide](../development/building-and-testing.md), then run `Start-EPOS-Control.cmd`. For a portable package, extract the complete ZIP, run `Verify-Setup.cmd`, and follow `START-HERE.md`. Advanced processing requires the compatible EPOS installation described in [validation status](../validation/status.md).
+Build a source checkout using the [build guide](../development/building-and-testing.md), then run `Start-Timbre.cmd`. For a portable package, extract the complete ZIP, run `Verify-Setup.cmd`, and follow `START-HERE.md`. Advanced processing requires the compatible EPOS installation described in [validation status](../validation/status.md).
 
 ## Choose an audio page
 
@@ -34,7 +34,7 @@ For example, include B20 Microphone and GSX Sound while leaving B20 Sound unchec
 
 ## Storage and restore
 
-Profiles use `%LOCALAPPDATA%\EPOS-Control\profiles.json`; setups use `setups.json` beside it. They survive replacement of the app directory. Existing app-directory profiles are imported only when the per-user destination is absent, with the original retained.
+Profiles use `%LOCALAPPDATA%\Timbre\profiles.json`; setups use `setups.json` beside it. They survive replacement of the app directory. Timbre starts with a fresh settings folder after the rename. It does not import or delete profiles, setups, or processing state from the former app.
 
 B20 Apply processing saves verified gate/filter/high-pass/EQ state under the same user folder's `processing-state` directory. **Restore saved processing** restores it manually. Automatic restore on app launch or an observed reconnect defaults to off; an available processing interface is required. Named profiles still require explicit application. GSX automatic processing restore is not implemented. See [B20 processing restoration](processing-state.md).
 

@@ -3,8 +3,8 @@ param([switch]$StopSuiteTemporarily, [switch]$HardwareAudio, [switch]$FreshIniti
 $ErrorActionPreference='Stop'
 if ($ManagedLifecycle) { $FreshInitialization=$true }
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$hostExe=Join-Path $root 'dist\host\EposControl.Host.exe'
-$testDll=Join-Path $root 'tests\EposControl.Tests\bin\Release\net9.0\EposControl.Tests.dll'
+$hostExe=Join-Path $root 'dist\host\Timbre.Host.exe'
+$testDll=Join-Path $root 'tests\Timbre.Tests\bin\Release\net9.0\Timbre.Tests.dll'
 if (!(Test-Path -LiteralPath $hostExe) -or !(Test-Path -LiteralPath $testDll)) { throw 'Build first with tools/Test-App.ps1.' }
 if ($HardwareAudio -and !$StopSuiteTemporarily) { throw '-HardwareAudio requires -StopSuiteTemporarily.' }
 if ($FreshInitialization -and !$StopSuiteTemporarily) { throw '-FreshInitialization requires -StopSuiteTemporarily.' }

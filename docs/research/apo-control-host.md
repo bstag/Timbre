@@ -6,7 +6,7 @@ Status: experimental B20 object-retention helper implemented on 2026-10-05; expl
 
 ## Implemented milestone
 
-In retention mode, `src/EposControl.Host` opens the existing B20 shared memory, mutex and notification event, validates the mapped settings, and keeps those handles open. It releases the mutex after each read so the existing control app and processor can continue using it. This mode never creates missing objects, initializes memory, changes settings, signals/resets the event, or restores a profile. It exits on its stop file, Ctrl+C, a deadline, disconnected/replaced device identity, unavailable state or incompatible memory.
+In retention mode, `src/Timbre.Host` opens the existing B20 shared memory, mutex and notification event, validates the mapped settings, and keeps those handles open. It releases the mutex after each read so the existing control app and processor can continue using it. This mode never creates missing objects, initializes memory, changes settings, signals/resets the event, or restores a profile. It exits on its stop file, Ctrl+C, a deadline, disconnected/replaced device identity, unavailable state or incompatible memory.
 
 The new [fresh-initialization mode](apo-initialization.md) is explicit and experimental. It passes isolated native tests, a live running-service refusal check, and actual B20 fresh-object creation/control checks with the service stopped. The [managed pilot](b20-host-lifecycle.md) also passes real B20 fresh creation, typed saved-state restoration and service-stopped control checks, with all initial settings/service/UI restored. That milestone passed 286 regression checks and 25 WPF scenarios. Subsequent B20 physical helper reconnect and service-stopped gate audio passed with exact restoration; see [the later lifecycle results](b20-host-lifecycle.md). Cold boot and startup without a diagnostic seed remain unvalidated.
 
@@ -16,7 +16,7 @@ The app writes its [last-successful processing store and restore preference](../
 
 ## Tests and local evidence
 
-All **198 regression checks and 19 WPF scenarios passed**, with a warning-free build. Fourteen new checks cover B20-only naming, read-only retention, signalled-event preservation, control updates from another thread, multiple owners, final handle release, disposal, missing/partial objects, invalid layouts, native mapping size, timeout, abandoned mutex cleanup and retention by a separate process. Windows object tests use unique `Local\EposControl.Tests.*` names and captured fixtures; they do not open actual EPOS objects.
+All **198 regression checks and 19 WPF scenarios passed**, with a warning-free build. Fourteen new checks cover B20-only naming, read-only retention, signalled-event preservation, control updates from another thread, multiple owners, final handle release, disposal, missing/partial objects, invalid layouts, native mapping size, timeout, abandoned mutex cleanup and retention by a separate process. Windows object tests use unique `Local\Timbre.Tests.*` names and captured fixtures; they do not open actual EPOS objects.
 
 The live read-only experiment passed with Gaming Suite running:
 

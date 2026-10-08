@@ -6,17 +6,17 @@ $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (!$SkipBuild) { & (Join-Path $PSScriptRoot 'Test-App.ps1') }
 & (Join-Path $PSScriptRoot 'Test-Documentation.ps1') -Root $root
 $app=Join-Path $root 'dist'
-$checks=Join-Path $root 'tests\EposControl.Tests\bin\Release\net9.0'
-if ((Get-FileHash -LiteralPath (Join-Path $app 'EposControl.Core.dll')).Hash -ne (Get-FileHash -LiteralPath (Join-Path $checks 'EposControl.Core.dll')).Hash) { throw 'App/test binaries differ. Run Test-App.ps1 before packaging.' }
+$checks=Join-Path $root 'tests\Timbre.Tests\bin\Release\net9.0'
+if ((Get-FileHash -LiteralPath (Join-Path $app 'Timbre.Core.dll')).Hash -ne (Get-FileHash -LiteralPath (Join-Path $checks 'Timbre.Core.dll')).Hash) { throw 'App/test binaries differ. Run Test-App.ps1 before packaging.' }
 $release=Join-Path $root 'artifacts\releases'
 $id=[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,8)
 $stage=Join-Path $release ('staging\'+$id)
-$package=Join-Path $stage 'EPOS-Control'
+$package=Join-Path $stage 'Timbre'
 New-Item -ItemType Directory -Path (Join-Path $package 'app'),(Join-Path $package 'checks\Fixtures'),(Join-Path $package 'docs') -Force | Out-Null
-foreach($name in @('EposControl.exe','EposControl.dll','EposControl.Core.dll','EposControl.deps.json','EposControl.runtimeconfig.json','devices.json')) {
+foreach($name in @('Timbre.exe','Timbre.dll','Timbre.Core.dll','Timbre.deps.json','Timbre.runtimeconfig.json','devices.json')) {
     Copy-Item -LiteralPath (Join-Path $app $name) -Destination (Join-Path $package 'app')
 }
-foreach($name in @('EposControl.Tests.dll','EposControl.Tests.deps.json','EposControl.Tests.runtimeconfig.json','EposControl.Core.dll')) {
+foreach($name in @('Timbre.Tests.dll','Timbre.Tests.deps.json','Timbre.Tests.runtimeconfig.json','Timbre.Core.dll')) {
     Copy-Item -LiteralPath (Join-Path $checks $name) -Destination (Join-Path $package 'checks')
 }
 Get-ChildItem -LiteralPath (Join-Path $checks 'Fixtures') -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $package 'checks\Fixtures') }
@@ -35,7 +35,7 @@ foreach($name in @('README.md','CONTRIBUTING.md','LICENSE','THIRD-PARTY-NOTICES.
 Get-ChildItem -LiteralPath $package -File -Filter '*.md' -Recurse | ForEach-Object {
     $document=$_
     $relative=$document.FullName.Substring($package.Length+1)
-    $original=if ($relative -eq 'checks\Fixtures\README.md') { Join-Path $root 'tests/EposControl.Tests/Fixtures/README.md' }
+    $original=if ($relative -eq 'checks\Fixtures\README.md') { Join-Path $root 'tests/Timbre.Tests/Fixtures/README.md' }
         elseif ($relative -eq 'START-HERE.md') { Join-Path $root 'START-HERE.md' }
         else { Join-Path $root $relative }
     $content=Get-Content -LiteralPath $document.FullName -Raw
@@ -47,8 +47,8 @@ Get-ChildItem -LiteralPath $package -File -Filter '*.md' -Recurse | ForEach-Obje
         $parts=$link -split '#',2
         $sourceTarget=[IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetDirectoryName($original)) $parts[0]))
         $sourceRelative=Get-DocumentationRelativePath $root $sourceTarget
-        $packRelative=if ($sourceRelative.StartsWith('tests/EposControl.Tests/Fixtures/')) {
-            'checks/Fixtures/'+$sourceRelative.Substring('tests/EposControl.Tests/Fixtures/'.Length)
+        $packRelative=if ($sourceRelative.StartsWith('tests/Timbre.Tests/Fixtures/')) {
+            'checks/Fixtures/'+$sourceRelative.Substring('tests/Timbre.Tests/Fixtures/'.Length)
         } else { $sourceRelative }
         $packTarget=Join-Path $package $packRelative
         if (!(Test-Path -LiteralPath $packTarget)) {
@@ -64,8 +64,8 @@ Get-ChildItem -LiteralPath $package -File -Filter '*.md' -Recurse | ForEach-Obje
 $files=@(Get-ChildItem -LiteralPath $package -File -Recurse | Sort-Object FullName | ForEach-Object {
     [pscustomobject]@{Path=$_.FullName.Substring($package.Length+1).Replace('\','/');Sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}
 })
-[pscustomobject]@{Package='EPOS Control';Architecture='win-x64';Framework='Microsoft.WindowsDesktop.App 9.x';GeneratedUtc=[DateTime]::UtcNow.ToString('o');Files=$files} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $package 'package-manifest.json') -Encoding UTF8
-$zip=Join-Path $release ('EPOS-Control-win-x64-'+$id+'.zip')
+[pscustomobject]@{Package='Timbre';Architecture='win-x64';Framework='Microsoft.WindowsDesktop.App 9.x';GeneratedUtc=[DateTime]::UtcNow.ToString('o');Files=$files} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $package 'package-manifest.json') -Encoding UTF8
+$zip=Join-Path $release ('Timbre-win-x64-'+$id+'.zip')
 Compress-Archive -LiteralPath @(Get-ChildItem -LiteralPath $package | ForEach-Object FullName) -DestinationPath $zip -CompressionLevel Optimal
 $expanded=Join-Path $stage 'verified-extraction'
 Expand-Archive -LiteralPath $zip -DestinationPath $expanded

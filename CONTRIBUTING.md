@@ -1,4 +1,4 @@
-# Contributing to EPOS Control
+# Contributing to Timbre
 
 Start with the [architecture guide](docs/development/app-design.md) and [build/test instructions](docs/development/building-and-testing.md).
 

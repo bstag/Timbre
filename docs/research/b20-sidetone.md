@@ -53,7 +53,7 @@ Optional live sidetone check (briefly changes its level and mute, then restores 
 Read-only topology capture:
 
 ```powershell
-dotnet .\tests\EposControl.Tests\bin\Release\net9.0\EposControl.Tests.dll --topology --report artifacts\audio-topology.json
+dotnet .\tests\Timbre.Tests\bin\Release\net9.0\Timbre.Tests.dll --topology --report artifacts\audio-topology.json
 ```
 
 Reviewed topology fixtures omit local endpoint IDs and USB parent identifiers. Raw local captures and hardware reports remain in ignored artifacts. GSX sidetone still needs its own protocol mapping.
