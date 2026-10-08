@@ -2,6 +2,8 @@
 
 Start with [using the app](user-guide/using-app.md) or [building and testing](development/building-and-testing.md). [Validation status](validation/status.md) summarizes current capabilities and remaining checks as of 2026-10-08.
 
+Read [project background and goals](project-background.md) for why this exists: continued use of EPOS hardware, recovering missing capabilities, learning Windows audio internals, and maintaining a practical tool with coding agents.
+
 ## User guides
 
 - [Using the app](user-guide/using-app.md): navigation, live edits, profiles, and storage.

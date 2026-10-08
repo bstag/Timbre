@@ -2,7 +2,17 @@
 
 A Windows desktop control app for EPOS B20 microphones and GSX 300 sound cards. It provides device volume/mute, supported processing controls, live activity views, and device/setup profiles through a native WPF interface.
 
-This is an experimental community project. Advanced processing still depends on a compatible installed EPOS driver/audio processor and, during normal app use, the Gaming Suite background service. Vendor installers, drivers, and processing binaries are not included.
+This is an experimental personal project developed with the help of coding agents. Advanced processing still depends on a compatible installed EPOS driver/audio processor and, during normal app use, the Gaming Suite background service. Vendor installers, drivers, and processing binaries are not included.
+
+## Why I built this
+
+I started EPOS Control because EPOS was winding down its gaming portfolio and I had trouble getting Gaming Suite from its website. I already had a working installation on another machine, and I wanted to keep using my B20 and GSX 300 even if downloads or vendor support became harder to obtain. I was also seeing these products still for sale at much lower prices than their original prices. Useful hardware should have a future beyond the availability of its original control software. [EPOS's portfolio announcement](https://www.eposaudio.com/en/na/gaming)
+
+The investigation revealed something I had missed on my own PC: my GSX 300 was using a generic USB audio driver. Basic sound worked, but the EPOS processing path and a whole group of features were missing. Selecting the compatible EPOS driver and rebooting exposed capabilities I had not realized I was missing, including the processing and surround features later confirmed by listening.
+
+I also wanted to learn how Windows audio, drivers, device interfaces, and memory-mapped control structures work together. Building a practical app gives that investigation a purpose: switch profiles for different activities, understand what my hardware can do, and maintain the controls myself with my coding agents as vendor support changes. The longer-term goal is to preserve the devices' capabilities; the current app's remaining EPOS dependencies are documented below.
+
+See [the project background and goals](docs/project-background.md) for the fuller story and [the recorded driver/validation results](docs/validation/home-validation.md) for the technical evidence.
 
 ## Supported controls
 
