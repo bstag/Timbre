@@ -1,0 +1,158 @@
+{
+  "EndpointId": "fixture-b20-microphone",
+  "DeviceId": "{2}.usb#vid_1395&pid_009f&mi_00#FIXTURE#epostopology",
+  "Parts": [
+    {
+      "LocalId": 131072,
+      "GlobalId": "{2}.usb#vid_1395&pid_009f&mi_00#FIXTURE#epostopology/00020000",
+      "Name": "Mute",
+      "Subtype": "02b223c0-c557-11d0-8a2b-00a0c9255ac1",
+      "Incoming": [
+        65536
+      ],
+      "Outgoing": [
+        131073
+      ],
+      "Levels": null,
+      "Muted": false
+    },
+    {
+      "LocalId": 131073,
+      "GlobalId": "{2}.usb#vid_1395&pid_009f&mi_00#FIXTURE#epostopology/00020001",
+      "Name": "Volume",
+      "Subtype": "3a5acc00-c557-11d0-8a2b-00a0c9255ac1",
+      "Incoming": [
+        131072
+      ],
+      "Outgoing": [
+        131074
+      ],
+      "Levels": [
+        {
+          "Decibels": -9.5,
+          "Minimum": -24,
+          "Maximum": 0,
+          "Step": 0.5
+        },
+        {
+          "Decibels": -9.5,
+          "Minimum": -24,
+          "Maximum": 0,
+          "Step": 0.5
+        }
+      ],
+      "Muted": null
+    },
+    {
+      "LocalId": 131074,
+      "GlobalId": "{2}.usb#vid_1395&pid_009f&mi_00#FIXTURE#epostopology/00020002",
+      "Name": "Sum",
+      "Subtype": "da441a60-c556-11d0-8a2b-00a0c9255ac1",
+      "Incoming": [
+        131073
+      ],
+      "Outgoing": [
+        65537
+      ],
+      "Levels": null,
+      "Muted": null
+    },
+    {
+      "LocalId": 131075,
+      "GlobalId": "{2}.usb#vid_1395&pid_009f&mi_00#FIXTURE#epostopology/00020003",
+      "Name": "Mute",
+      "Subtype": "02b223c0-c557-11d0-8a2b-00a0c9255ac1",
+      "Incoming": [
+        131077
+      ],
+      "Outgoing": [
+        131076
+      ],
+      "Levels": null,
+      "Muted": false
+    },
+    {
+      "LocalId": 131076,
+      "GlobalId": "{2}.usb#vid_1395&pid_009f&mi_00#FIXTURE#epostopology/00020004",
+      "Name": "Volume",
+      "Subtype": "3a5acc00-c557-11d0-8a2b-00a0c9255ac1",
+      "Incoming": [
+        131075
+      ],
+      "Outgoing": [
+        65539
+      ],
+      "Levels": [
+        {
+          "Decibels": -2.2617188,
+          "Minimum": -65.625,
+          "Maximum": 0,
+          "Step": 0.375
+        },
+        {
+          "Decibels": -2.2617188,
+          "Minimum": -65.625,
+          "Maximum": 0,
+          "Step": 0.375
+        }
+      ],
+      "Muted": null
+    },
+    {
+      "LocalId": 131077,
+      "GlobalId": "{2}.usb#vid_1395&pid_009f&mi_00#FIXTURE#epostopology/00020005",
+      "Name": "Sum",
+      "Subtype": "da441a60-c556-11d0-8a2b-00a0c9255ac1",
+      "Incoming": [
+        65538,
+        131079
+      ],
+      "Outgoing": [
+        131075
+      ],
+      "Levels": null,
+      "Muted": null
+    },
+    {
+      "LocalId": 131078,
+      "GlobalId": "{2}.usb#vid_1395&pid_009f&mi_00#FIXTURE#epostopology/00020006",
+      "Name": "Mute",
+      "Subtype": "02b223c0-c557-11d0-8a2b-00a0c9255ac1",
+      "Incoming": [
+        65536
+      ],
+      "Outgoing": [
+        131079
+      ],
+      "Levels": null,
+      "Muted": false
+    },
+    {
+      "LocalId": 131079,
+      "GlobalId": "{2}.usb#vid_1395&pid_009f&mi_00#FIXTURE#epostopology/00020007",
+      "Name": "Volume",
+      "Subtype": "3a5acc00-c557-11d0-8a2b-00a0c9255ac1",
+      "Incoming": [
+        131078
+      ],
+      "Outgoing": [
+        131077
+      ],
+      "Levels": [
+        {
+          "Decibels": 2.9765625,
+          "Minimum": -34.5,
+          "Maximum": 9,
+          "Step": 1.5
+        },
+        {
+          "Decibels": 2.9765625,
+          "Minimum": -34.5,
+          "Maximum": 9,
+          "Step": 1.5
+        }
+      ],
+      "Muted": null
+    }
+  ]
+}

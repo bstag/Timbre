@@ -1,0 +1,4 @@
+[
+  { "VendorId": "1395", "ProductId": "009F", "Model": "EPOS B20", "AdapterFamily": "CMedia", "MicrophoneProcessing": true, "Sidetone": true, "Surround": false },
+  { "VendorId": "1395", "ProductId": "0098", "Model": "EPOS GSX 300", "AdapterFamily": "Boston", "MicrophoneProcessing": true, "Sidetone": true, "Surround": true }
+]

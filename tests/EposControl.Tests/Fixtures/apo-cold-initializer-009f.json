@@ -1,0 +1,373 @@
+{
+  "EvidenceType": "Static initializer applied to a fresh zeroed page; not a live hardware capture",
+  "SourceSha256": "350D5EC4DEA1F6440C83DA82A0155AF1D7ACA02250E3F31EB7E3EBF472B8DD44",
+  "InitializerStart": "00553D10",
+  "InitializerEnd": "00554027",
+  "LogicalSize": 2112,
+  "MappedViewSize": 4096,
+  "MeterConstantAddress": "007B9930",
+  "MeterConstant": -120.0,
+  "Sha256": "2B358E0D9F812EF8E26FC061A8A023DC55B07566B8AB6F4E7AD6EEBE7AE153F4",
+  "Writes": [
+    {
+      "InstructionAddress": "00553D1A",
+      "Offset": 0,
+      "WireType": "Int32",
+      "Value": 2
+    },
+    {
+      "InstructionAddress": "00553D23",
+      "Offset": 4,
+      "WireType": "Int32",
+      "Value": 4
+    },
+    {
+      "InstructionAddress": "00553D2D",
+      "Offset": 64,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553D34",
+      "Offset": 65,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553D3B",
+      "Offset": 66,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553D42",
+      "Offset": 67,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553D49",
+      "Offset": 68,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553D50",
+      "Offset": 69,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553D57",
+      "Offset": 70,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553D5E",
+      "Offset": 71,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553D65",
+      "Offset": 72,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553D6F",
+      "Offset": 76,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553D7A",
+      "Offset": 80,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553D85",
+      "Offset": 84,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553D90",
+      "Offset": 88,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553D9B",
+      "Offset": 92,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553DA6",
+      "Offset": 96,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553DB1",
+      "Offset": 100,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553DBC",
+      "Offset": 104,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553DC7",
+      "Offset": 108,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553DD2",
+      "Offset": 112,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553DDD",
+      "Offset": 116,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553DE8",
+      "Offset": 120,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553DF3",
+      "Offset": 124,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553DFE",
+      "Offset": 128,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553E0C",
+      "Offset": 132,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553E1A",
+      "Offset": 136,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553E28",
+      "Offset": 140,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553E36",
+      "Offset": 144,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553E44",
+      "Offset": 148,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553E52",
+      "Offset": 152,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00553E5D",
+      "Offset": 156,
+      "WireType": "Int32",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553E6A",
+      "Offset": 160,
+      "WireType": "Int32",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553E77",
+      "Offset": 164,
+      "WireType": "Int32",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553E84",
+      "Offset": 168,
+      "WireType": "Int32",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553E91",
+      "Offset": 172,
+      "WireType": "Int32",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553E9E",
+      "Offset": 176,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553EA8",
+      "Offset": 177,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553EB2",
+      "Offset": 180,
+      "WireType": "Int32",
+      "Value": 2
+    },
+    {
+      "InstructionAddress": "00553EBF",
+      "Offset": 184,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553EC9",
+      "Offset": 185,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553ED3",
+      "Offset": 186,
+      "WireType": "Byte",
+      "Value": 0
+    },
+    {
+      "InstructionAddress": "00553EE5",
+      "Offset": 1088,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553EF8",
+      "Offset": 1092,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553F0B",
+      "Offset": 1096,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553F1E",
+      "Offset": 1100,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553F31",
+      "Offset": 1104,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553F44",
+      "Offset": 1108,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553F57",
+      "Offset": 1112,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553F6A",
+      "Offset": 1116,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553F7D",
+      "Offset": 1120,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553F90",
+      "Offset": 1124,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553FA3",
+      "Offset": 1128,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553FB6",
+      "Offset": 1132,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553FC9",
+      "Offset": 1136,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553FDC",
+      "Offset": 1140,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553FEF",
+      "Offset": 1144,
+      "WireType": "Float32",
+      "Value": -120.0
+    },
+    {
+      "InstructionAddress": "00553FFD",
+      "Offset": 1148,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "0055400B",
+      "Offset": 1152,
+      "WireType": "Float32",
+      "Value": 0.0
+    },
+    {
+      "InstructionAddress": "00554019",
+      "Offset": 1156,
+      "WireType": "Float32",
+      "Value": 0.0
+    }
+  ]
+}

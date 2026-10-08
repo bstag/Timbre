@@ -1,0 +1,15 @@
+**/bin/
+**/obj/
+artifacts/
+preservation/
+dist/
+**/data/
+
+# Local IDE state and credentials
+.vs/
+.idea/
+*.user
+*.suo
+.env
+.env.*
+!.env.example

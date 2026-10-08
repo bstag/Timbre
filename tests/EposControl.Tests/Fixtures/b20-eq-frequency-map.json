@@ -1,0 +1,16 @@
+{
+  "Device": "B20",
+  "Source": "User-provided Gaming Suite microphone EQ screenshot on 2026-10-05; labels transcribed left to right. APO order established by the prior EQ captures.",
+  "Screenshot": "b20-eq-frequencies.png",
+  "Bands": [
+    { "Band": 1, "FrequencyHz": 64, "Label": "64 Hz", "ApoOffset": 112 },
+    { "Band": 2, "FrequencyHz": 125, "Label": "125 Hz", "ApoOffset": 116 },
+    { "Band": 3, "FrequencyHz": 250, "Label": "250 Hz", "ApoOffset": 120 },
+    { "Band": 4, "FrequencyHz": 500, "Label": "500 Hz", "ApoOffset": 124 },
+    { "Band": 5, "FrequencyHz": 1000, "Label": "1 kHz", "ApoOffset": 128 },
+    { "Band": 6, "FrequencyHz": 2000, "Label": "2 kHz", "ApoOffset": 132 },
+    { "Band": 7, "FrequencyHz": 4000, "Label": "4 kHz", "ApoOffset": 136 },
+    { "Band": 8, "FrequencyHz": 8000, "Label": "8 kHz", "ApoOffset": 140 },
+    { "Band": 9, "FrequencyHz": 16000, "Label": "16 kHz", "ApoOffset": 144 }
+  ]
+}

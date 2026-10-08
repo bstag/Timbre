@@ -1,0 +1,21 @@
+{
+  "Device": "EPOS GSX 300",
+  "VendorId": "1395",
+  "ProductId": "0098",
+  "Direction": "Playback",
+  "CapturedDate": "2026-10-06",
+  "MemorySize": 4096,
+  "Header": [2, 4],
+  "SurroundOffset": 64,
+  "StereoValue": 0,
+  "Virtual71Value": 1,
+  "EqualizerOffsets": [76, 80, 84, 88, 92, 96, 100, 104, 108],
+  "BandLabels": ["64 Hz", "125 Hz", "250 Hz", "500 Hz", "1 kHz", "2 kHz", "4 kHz", "8 kHz", "16 kHz"],
+  "EqualizerEncoding": "little-endian float32, decibels, -6 to +6",
+  "Screenshot": "gsx-playback-eq-frequencies.png",
+  "NativeServiceSha256": "350D5EC4DEA1F6440C83DA82A0155AF1D7ACA02250E3F31EB7E3EBF472B8DD44",
+  "NativeSurroundWrite": "0055AEB9: mov byte ptr [edx+40h],al",
+  "NativeEqWrite": "0055CAED: mov dword ptr [ecx+edx*4+4Ch],eax; loop index 0..8",
+  "UnownedReverbEnableOffset": 69,
+  "LiveScope": "Stereo/7.1/stereo; first band +6 dB; last band -6 dB; restored Flat/stereo. Other band offsets follow the recovered indexed native writer and screenshot order. Audio listening and Suite-independent initialization remain unverified."
+}
