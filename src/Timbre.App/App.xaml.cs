@@ -31,13 +31,10 @@ public partial class App : Application
             var catalog = new DeviceCatalog(JsonSerializer.Deserialize<List<DeviceDefinition>>(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "devices.json"))) ?? []);
             IAudioBackend audio = demo ? new DemoAudioBackend() : new CoreAudioBackend();
             var customData = args.Contains("--data-directory") ? Path.GetFullPath(ArgumentValue(args, "--data-directory")) : null;
-            var data = render ? Path.Combine(Path.GetDirectoryName(Path.GetFullPath(ArgumentValue(args, "--render-demo")))!, "ui-verification-" + Guid.NewGuid().ToString("N"))
-                : customData is not null ? customData
-                : demo ? Path.Combine(AppContext.BaseDirectory, "data", "demo")
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Timbre");
-            var stateDirectory = Path.Combine(data, "processing-state");
-            var profileStore = new ProfileStore(Path.Combine(data, "profiles.json"));
-            var window = new MainWindow(audio, catalog, profileStore, new ProcessingStateStore(stateDirectory), new SetupProfileStore(Path.Combine(data, "setups.json")), demo);
+            var storage = ApplicationStorage.Open(AppContext.BaseDirectory,
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), demo, customData,
+                render ? ArgumentValue(args, "--render-demo") : null);
+            var window = new MainWindow(audio, catalog, storage.Profiles, storage.Processing, storage.Setups, demo);
             if (render) {
                 window.VerifyDemoUi();
                 if (args.Contains("--sound-page")) window.SelectDemoSoundPage();

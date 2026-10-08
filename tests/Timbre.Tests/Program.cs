@@ -20,6 +20,7 @@ PlaybackTests.Run(suite);
 ReverbTests.Run(suite);
 LiveApplyTests.Run(suite);
 ProfileWorkflowTests.Run(suite);
+ApplicationStorageTests.Run(suite);
 SetupProfileTests.Run(suite);
 B20ProcessingTests.Run(suite);
 ProfileEffectsTests.Run(suite);
