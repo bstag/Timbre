@@ -21,7 +21,7 @@ public sealed class GsxHostOwner : IDisposable
         try {
             bool acquired;
             try { acquired = mutex.WaitOne(0); } catch (AbandonedMutexException) { acquired = true; }
-            if (!acquired) throw new InvalidOperationException("Another GSX initializer is already running.");
+            if (!acquired) throw new InvalidOperationException("Another GSX initializer/managed helper is already running.");
         } catch { mutex.Dispose(); throw; }
     }
     public void Dispose()

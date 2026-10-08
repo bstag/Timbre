@@ -25,7 +25,7 @@ Read [project background and goals](project-background.md) for why this exists: 
 
 - B20: [sidetone](research/b20-sidetone.md), [pickup pattern](research/b20-pickup-pattern.md), and [feature findings](research/b20-feature-findings.md).
 - Processing helper: [object retention](research/apo-control-host.md), [B20 initialization](research/apo-initialization.md), and [managed B20 lifecycle](research/b20-host-lifecycle.md).
-- GSX 300: [microphone controls](research/gsx-microphone-controls.md), [playback controls](research/gsx-playback-controls.md), [sidetone/reverb evidence](research/gsx-remaining-controls.md), and [initialization](research/gsx-initialization.md).
+- GSX 300: [microphone controls](research/gsx-microphone-controls.md), [playback controls](research/gsx-playback-controls.md), [sidetone/reverb evidence](research/gsx-remaining-controls.md), [initialization](research/gsx-initialization.md), and [managed processing lifecycle](research/gsx-host-lifecycle.md).
 - Background: [initial local investigation](research/local-investigation.md) and [official-source findings](research/official-sources.md).
 
 ## Validation

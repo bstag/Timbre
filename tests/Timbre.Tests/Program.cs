@@ -43,6 +43,8 @@ GsxInitializationTests.Run(suite);
 GsxPreparedDiscoveryTests.Run(suite);
 AudioRecoveryTests.Run(suite);
 ProcessingStateTests.Run(suite);
+GsxProcessingStateTests.Run(suite);
 B20HostLifecycleTests.Run(suite);
+GsxHostLifecycleTests.Run(suite);
 suite.Report(args);
 return suite.Failures == 0 ? 0 : 1;

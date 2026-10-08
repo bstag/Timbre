@@ -11,12 +11,14 @@ var thread = new Thread(() => {
     IDisposable? lifetime = null;
     IDisposable? owner = null;
     B20HostLifecycle? lifecycle = null;
+    GsxHostLifecycle? gsxLifecycle = null;
     var started = DateTimeOffset.UtcNow;
     string? failure = null;
     try {
         var options = ApoHostOptions.Parse(args);
         var initialize = options.Mode == "--initialize-b20";
         var managed = options.Mode == "--manage-b20";
+        var managedGsx = options.Mode == "--manage-gsx";
         var pausedGsx = options.Mode == "--initialize-gsx-paused";
         var initializeGsx = options.Mode == "--initialize-gsx" || pausedGsx;
         var validateGsx = options.Mode == "--validate-gsx";
@@ -96,6 +98,33 @@ var thread = new Thread(() => {
                 Thread.Sleep(1000);
             }
             }
+        } else if (managedGsx) {
+            owner = GsxHostOwner.Acquire();
+            gsxLifecycle = new(options.DeviceInstance!, audio, new GsxProcessingStateStore(options.StateDirectory!),
+                (microphone, playback) => GsxApoStartupState.Load(options.InitialState!, microphone, playback),
+                (microphone, playback, startup) => OperatingSystem.IsWindows()
+                    ? WindowsGsxHostConnection.Connect(microphone, playback, audio, startup) : throw new PlatformNotSupportedException());
+            Save("starting", new { ProcessId = Environment.ProcessId, Started = started, Deadline = deadline,
+                Mode = "ManageGsxLifecycle", options.DeviceInstance, options.StateDirectory, AutomaticRestorePolicy = "SavedPerDeviceOptIn" });
+            var recordedGeneration = 0;
+            while (Continue()) {
+                var status = gsxLifecycle.Tick(DateTimeOffset.UtcNow);
+                var report = new { ProcessId = Environment.ProcessId, CollectedAt = DateTimeOffset.UtcNow, Started = started, Deadline = deadline,
+                    Mode = "ManageGsxLifecycle", status.State, status.Endpoint, status.PlaybackEndpoint, status.Effects, status.CreatedFresh,
+                    status.SettingsWrites, CreatesMissingObjects = true, AutomaticRestore = status.RestoreSource == "LastSavedProcessing",
+                    StartupRestorePolicy = status.RestoreSource, status.Generation, status.Attempts, status.Error };
+                Save("heartbeat", report);
+                if (status.State == "Faulted") throw new InvalidOperationException("Managed GSX host failed: " + status.Error);
+                if (status.State == "Connected" && status.Generation != recordedGeneration) {
+                    Save("connection-" + status.Generation.ToString("D4"), report);
+                    if (recordedGeneration == 0) Save("ready", report);
+                    recordedGeneration = status.Generation;
+                    Console.WriteLine($"GSX connected (generation {status.Generation}); restore source: {status.RestoreSource}.");
+                }
+                Thread.Sleep(1000);
+            }
+            if (recordedGeneration == 0 && !File.Exists(options.StopFile) && !Volatile.Read(ref stopRequested))
+                throw new TimeoutException("The target GSX never became ready before the experiment deadline.");
         } else if (managed) {
             lifecycle = new(options.DeviceInstance!, audio, new ProcessingStateStore(options.StateDirectory!),
                 endpoint => ApoStartupState.LoadForB20(options.InitialState!, endpoint),
@@ -152,12 +181,12 @@ var thread = new Thread(() => {
         result = 0;
     } catch (Exception ex) { failure = ex.ToString(); Console.Error.WriteLine(ex.Message); }
     finally {
-        try { lifecycle?.Dispose(); lifetime?.Dispose(); }
+        try { gsxLifecycle?.Dispose(); lifecycle?.Dispose(); lifetime?.Dispose(); }
         catch (Exception ex) { failure = (failure ?? "") + "\nShutdown: " + ex; result = 1; }
         finally { owner?.Dispose(); }
         if (directory is not null) {
             try { Save("stopped", new { ProcessId = Environment.ProcessId, Stopped = DateTimeOffset.UtcNow, Success = result == 0,
-                LastState = lifecycle?.Status, Error = failure }); }
+                LastState = (object?)gsxLifecycle?.Status ?? lifecycle?.Status, Error = failure }); }
             catch (Exception ex) { Console.Error.WriteLine("Could not save host shutdown report: " + ex.Message); result = 1; }
         }
     }

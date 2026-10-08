@@ -4,6 +4,8 @@ Updated 2026-10-08. This is the current summary; dated research and audit files 
 
 ## Source verification
 
+The GSX managed-processing foundation passed **588 regressions, 121 WPF scenarios, 51 fixture-free PowerShell checks and 9 offline USB guards** on 2026-10-08. The new typed store saves both GSX processing pages per physical USB instance, with restoration off by default. A paired transaction checks both pages under one lock, rolls back attempted fields on failure and preserves newer edits/unowned state. The bounded `--manage-gsx` helper passes simulated/native reconnection and actual absent-target/competing-owner/stop checks without changing hardware or services. It is separate from the normal UI; physical managed restoration/reconnect and cold boot remain unvalidated. See [managed GSX lifecycle](../research/gsx-host-lifecycle.md) for scope and evidence.
+
 The source-only readiness run on 2026-10-08 built without existing `dist`, `bin`, or `obj` outputs, then passed **511 regression checks, 121 WPF scenarios, and 9 offline GSX probe guards**. Files under `artifacts/github-readiness-40a010ec/` are local evidence excluded from Git. The first sandboxed run failed temporary-file/native-permission checks; the same source passed outside that filesystem sandbox.
 
 Run [normal verification](../development/building-and-testing.md#normal-verification) to obtain current counts. These numbers record this verification date, not a fixed requirement for future changes.

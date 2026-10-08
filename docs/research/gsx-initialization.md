@@ -1,5 +1,7 @@
 # GSX 300 processing initialization
 
+The separate [managed GSX lifecycle](gsx-host-lifecycle.md) now has a typed microphone/playback store and bounded helper with offline/native reconnection coverage. Its real-device managed pilot is still pending; the fresh-initialization results below do not validate that new mode.
+
 Implemented 2026-10-08 as a bounded console experiment. Fresh GSX creation, service-stopped microphone/playback control transactions, microphone gate and playback EQ audio processing passed on hardware after a controlled Windows Audio restart. The corrected playback runner also passed observed vendor ownership handoff and exact recovery. Its earlier failed recovery remains recorded below. The installed EPOS driver and Windows-hosted audio processor remain required. Fresh-session surround/reverb/filter/microphone-EQ audio behavior, cold boot, managed GSX reconnect and automatic GSX restoration remain unvalidated. This is not an installed service.
 
 ## Fresh-session microphone audio measurement

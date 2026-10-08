@@ -1,17 +1,19 @@
 [CmdletBinding()]
-param()
+param([ValidateSet('B20','GSX300')][string]$Device = 'B20')
 $ErrorActionPreference='Stop'
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $hostExe=Join-Path $root 'dist\host\Timbre.Host.exe'
 if (!(Test-Path -LiteralPath $hostExe)) { throw 'Build first with tools/Test-App.ps1.' }
-$reportRoot=Join-Path $root ('artifacts\apo-host\managed-process-'+[Guid]::NewGuid().ToString('N'))
+$reportRoot=Join-Path $root ('artifacts\apo-host\managed-process-'+$Device.ToLowerInvariant()+'-'+[Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $reportRoot | Out-Null
 $target='EPOS-CONTROL-ABSENT-PROBE-'+[Guid]::NewGuid().ToString('N')
 $processes=[Collections.Generic.List[object]]::new()
+$mode = if ($Device -eq 'GSX300') { '--manage-gsx' } else { '--manage-b20' }
+$ownerError = if ($Device -eq 'GSX300') { 'Another GSX initializer' } else { 'Another B20 initializer/managed helper' }
 function Start-Probe([string]$name) {
     $directory=Join-Path $reportRoot $name
     $stop=Join-Path $reportRoot ('stop-'+$name)
-    $arguments=@('--manage-b20','--initial-state',('"'+(Join-Path $reportRoot 'missing-seed.json')+'"'),
+    $arguments=@($mode,'--initial-state',('"'+(Join-Path $reportRoot 'missing-seed.json')+'"'),
         '--state-directory',('"'+(Join-Path $reportRoot 'unused-state')+'"'),'--device-instance',$target,
         '--report-directory',('"'+$directory+'"'),'--stop-file',('"'+$stop+'"'),'--seconds','30')
     # Retain the native process handle from Start through ExitCode. Start-Process -PassThru
@@ -48,7 +50,7 @@ try {
     $second=Start-Probe 'second'
     if (!$second.Process.WaitForExit(5000) -or !$second.Process.ExitCode) { throw 'A competing managed helper was not refused.' }
     $rejected=Get-Content -LiteralPath (Join-Path $second.Directory 'stopped.json') -Raw | ConvertFrom-Json
-    if ($rejected.Success -or $rejected.Error -notmatch 'Another B20 initializer/managed helper') { throw 'Competing helper failed for an unexpected reason.' }
+    if ($rejected.Success -or $rejected.Error -notmatch $ownerError) { throw 'Competing helper failed for an unexpected reason.' }
     Stop-Probe $first
     $third=Start-Probe 'after-release'; Wait-Waiting $third; Stop-Probe $third
     if (Test-Path -LiteralPath (Join-Path $reportRoot 'unused-state')) { throw 'Absent-device process unexpectedly accessed settings storage.' }
@@ -64,7 +66,7 @@ finally {
             [IO.File]::WriteAllText((Join-Path $reportRoot ($entry.Name+'-stderr.txt')),$entry.Process.StandardError.ReadToEnd())
         }
     }
-    [pscustomobject]@{Passed=($null -eq $failure);Target=$target;AbsentDeviceWaited=($null -eq $failure);CompetingOwnerRefused=($null -eq $failure);OwnerReleased=($null -eq $failure);SettingsWrites=$false;CreatesVendorObjects=$false;Error=$failure;Reports=$reportRoot} |
+    [pscustomobject]@{Passed=($null -eq $failure);Device=$Device;Target=$target;AbsentDeviceWaited=($null -eq $failure);CompetingOwnerRefused=($null -eq $failure);OwnerReleased=($null -eq $failure);SettingsWrites=$false;CreatesVendorObjects=$false;Error=$failure;Reports=$reportRoot} |
         ConvertTo-Json | Set-Content -LiteralPath (Join-Path $reportRoot 'assessment.json') -Encoding UTF8
     Write-Output ('Managed process reports: '+$reportRoot)
 }

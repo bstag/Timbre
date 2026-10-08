@@ -35,6 +35,7 @@ public sealed class WindowsApoObjectLease : IDisposable
     private MemoryMappedViewAccessor? view;
     private EventWaitHandle? changed;
     private bool disposed;
+    private bool validatePlayback;
 
     public static WindowsApoObjectLease RetainB20(AudioEndpoint endpoint, IAudioBackend audio)
     {
@@ -42,9 +43,18 @@ public sealed class WindowsApoObjectLease : IDisposable
         return OpenExisting(ApoSharedObjects.B20Name(endpoint.Usb!));
     }
 
-    internal static WindowsApoObjectLease OpenExisting(string name)
+    public static WindowsApoObjectLease RetainGsx(AudioEndpoint microphone, AudioEndpoint playback, IAudioBackend audio)
     {
-        var lease = new WindowsApoObjectLease();
+        GsxApoStartupState.ValidateEndpoints(microphone, playback);
+        var discovered = audio.Discover();
+        WindowsApoMemory.ValidateIdentity(microphone, discovered);
+        WindowsApoMemory.ValidatePlaybackIdentity(playback, discovered);
+        return OpenExisting(WindowsApoMemory.MicrophoneObjectName(microphone), true);
+    }
+
+    internal static WindowsApoObjectLease OpenExisting(string name, bool validatePlayback = false)
+    {
+        var lease = new WindowsApoObjectLease { validatePlayback = validatePlayback };
         try {
             lease.mutex = Mutex.OpenExisting(name + "_mutex");
             lease.map = MemoryMappedFile.OpenExisting(name + "_memory", MemoryMappedFileRights.Read);
@@ -60,6 +70,15 @@ public sealed class WindowsApoObjectLease : IDisposable
     private WindowsApoObjectLease() { }
 
     public MicrophoneEffects Read()
+        => ApoMicrophoneCodec.Read(ReadMemory());
+
+    public GsxProcessingState ReadGsx()
+    {
+        if (!validatePlayback) throw new InvalidOperationException("This lease does not validate GSX playback.");
+        return GsxProcessingState.Read(ReadMemory());
+    }
+
+    private byte[] ReadMemory()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         ApoSharedObjects.Enter(mutex!);
@@ -67,7 +86,9 @@ public sealed class WindowsApoObjectLease : IDisposable
             var bytes = new byte[ApoMicrophoneCodec.MemorySize];
             if (view!.ReadArray(0, bytes, 0, bytes.Length) != bytes.Length)
                 throw new IOException("Incomplete EPOS effects snapshot.");
-            return ApoMicrophoneCodec.Read(bytes);
+            ApoMicrophoneCodec.Read(bytes);
+            if (validatePlayback) ApoPlaybackCodec.Read(bytes);
+            return bytes;
         } finally { mutex!.ReleaseMutex(); }
     }
 

@@ -31,6 +31,23 @@ public static class WindowsApoMemory
         return new Session("Global\\CF4B411F-BE2B-4D84-8106-EC27CA0F8F05_1395_0098", ApoPlaybackCodec.ValidatePatch);
     });
 
+    [SupportedOSPlatform("windows")]
+    public static IGsxProcessingBackend CreateGsxProcessing(IAudioBackend audio) => new ApoGsxProcessingBackend((microphone, playback) => {
+        GsxApoStartupState.ValidateEndpoints(microphone, playback);
+        var discovered = audio.Discover();
+        ValidateIdentity(microphone, discovered); ValidatePlaybackIdentity(playback, discovered);
+        return new Session(MicrophoneObjectName(microphone), (offset, length) => ValidateGsxPatch(microphone, offset, length));
+    });
+
+    internal static void ValidateGsxPatch(AudioEndpoint microphone, int offset, int length)
+    {
+        // Playback and microphone fields are disjoint in the recovered structure.
+        if (offset is ApoPlaybackCodec.SurroundOffset or ApoPlaybackCodec.ReverbEnabledOffset or ApoPlaybackCodec.ReverbLevelOffset ||
+            offset >= ApoPlaybackCodec.EqualizerOffset && offset < ApoPlaybackCodec.EqualizerOffset + 36)
+            ApoPlaybackCodec.ValidatePatch(offset, length);
+        else ValidateMicrophonePatch(microphone, offset, length);
+    }
+
     public static void ValidatePlaybackIdentity(AudioEndpoint endpoint, IReadOnlyList<AudioEndpoint> discovered)
     {
         ApoPlaybackCodec.ValidateEndpoint(endpoint);
