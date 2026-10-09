@@ -96,6 +96,16 @@ internal static class GsxHostLifecycleTests
                 TestSuite.Throws<ArgumentException>(() => ApoHostOptions.Parse(missing));
             }
         });
+        suite.Case("Managed GSX validation command requires the same complete input without selecting runtime mode", () => {
+            string[] args = ["--validate-managed-gsx", "--initial-state", "snapshot.json", "--state-directory", "state", "--device-instance", "TARGET", "--report-directory", "report", "--stop-file", "stop", "--seconds", "30"];
+            TestSuite.Assert(ApoHostOptions.Parse(args) is { Mode: "--validate-managed-gsx", DeviceInstance: "TARGET", Seconds: 30 });
+            foreach (var key in new[] { "--initial-state", "--state-directory", "--device-instance" }) {
+                var index = Array.IndexOf(args, key); var missing = args.Take(index).Concat(args.Skip(index + 2)).ToArray();
+                TestSuite.Throws<ArgumentException>(() => ApoHostOptions.Parse(missing));
+            }
+            var plain = args.ToArray(); plain[0] = "--validate-gsx";
+            TestSuite.Throws<ArgumentException>(() => ApoHostOptions.Parse(plain));
+        });
         if (OperatingSystem.IsWindows()) NativeTests(suite);
     }
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]

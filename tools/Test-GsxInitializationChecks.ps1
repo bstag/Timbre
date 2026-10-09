@@ -139,6 +139,117 @@ Check 'Handoff rejects empty handles and another model namespace' {
     Equal (Test-ApoVendorHandoffReady @(VendorOwners 123 'EPOSGamingSuiteService' '009f') 123) $false
 }
 Check 'B20 handoff can be inspected independently with its exact namespace' { Equal (Test-ApoVendorHandoffReady @(VendorOwners 123 'EPOSGamingSuiteService' '009f') 123 '009f') $true }
+function ManagedPair {
+    @([pscustomobject]@{Id='mic';Direction=1;Usb=[pscustomobject]@{VendorId='1395';ProductId='0098';InstanceId='USB\TEST'}},
+      [pscustomobject]@{Id='sound';Direction=0;Usb=[pscustomobject]@{VendorId='1395';ProductId='0098';InstanceId='USB\TEST'}})
+}
+function ManagedValues {
+    [pscustomobject]@{Microphone=[pscustomobject]@{GatePercent=37;FilterLevel=1;Processing=[pscustomobject]@{Equalizer=[pscustomobject]@{Band1=0}}};
+        Playback=[pscustomobject]@{SurroundEnabled=$false;Equalizer=[pscustomobject]@{Band1=0};Reverb=[pscustomobject]@{Enabled=$false;Level=0}}}
+}
+function ManagedReady {
+    $pair=ManagedPair
+    [pscustomobject]@{ProcessId=123;Endpoint=$pair[0];PlaybackEndpoint=$pair[1];Mode='ManageGsxLifecycle';State='Connected';Generation=1;
+        StartupRestorePolicy='LastSavedProcessing';CreatedFresh=$false;SettingsWrites=$true;AutomaticRestore=$true;Effects=(ManagedValues);Error=$null}
+}
+function ManagedValidation {
+    $pair=ManagedPair; $values=ManagedValues
+    [pscustomobject]@{ProcessId=123;Endpoint=$pair[0];PlaybackEndpoint=$pair[1];Mode='ValidateManagedGsxStartup';Effects=$values.Microphone;Playback=$values.Playback;
+        SettingsWrites=$false;CreatesMissingObjects=$false;CreatedFresh=$false;DiscoveryActivatesAudioClients=$false;
+        SavedProcessing=[pscustomobject]@{DeviceIdentity=(Get-GsxProcessingIdentity $pair[0] $pair[1]);RestoreOnConnect=$true;Effects=$values}}
+}
+function ReadyCheck($report) {
+    $pair=ManagedPair; $values=ManagedValues
+    Assert-GsxManagedReadiness $report 123 $pair[0] $pair[1] $values.Microphone $values.Playback
+}
+function ValidationCheck($report) {
+    $pair=ManagedPair; $values=ManagedValues
+    Assert-GsxManagedValidation $report 123 $pair[0] $pair[1] $values.Microphone $values.Playback
+}
+Check 'Managed preparation and service-stop pilot are permitted as separate bounded paths' {
+    Assert-GsxInitializationOptions $false $false $false $false $false $true
+    Assert-GsxInitializationOptions $true $false $false $false $false $true
+}
+Check 'Managed pilot rejects audio-engine restart, reconnect and measurements before service operations' {
+    Refuses { Assert-GsxInitializationOptions $true $false $false $false $true $true }
+    Refuses { Assert-GsxInitializationOptions $true $false $false $true $false $true }
+    Refuses { Assert-GsxInitializationOptions $true $true $false $false $false $true }
+    Refuses { Assert-GsxInitializationOptions $true $false $true $false $false $true }
+}
+Check 'Managed store identity is canonical and independent of endpoint names or GUIDs' {
+    $pair=ManagedPair; Equal (Get-GsxProcessingIdentity $pair[0] $pair[1]) '1395|0098|Processing|USB\TEST'
+    $pair[0].Id='new-mic'; $pair[1].Id='new-sound'; $pair[0].Usb.InstanceId='usb\test'
+    Equal (Get-GsxProcessingIdentity $pair[0] $pair[1]) '1395|0098|Processing|USB\TEST'
+}
+Check 'Managed identity refuses mixed units, wrong model, empty identities and wrong directions' {
+    $pair=ManagedPair; $pair[1].Usb.InstanceId='OTHER'; Refuses { Get-GsxProcessingIdentity $pair[0] $pair[1] }
+    $pair=ManagedPair; $pair[0].Usb.ProductId='009F'; Refuses { Get-GsxProcessingIdentity $pair[0] $pair[1] }
+    $pair=ManagedPair; $pair[0].Usb.InstanceId=''; Refuses { Get-GsxProcessingIdentity $pair[0] $pair[1] }
+    $pair=ManagedPair; Refuses { Get-GsxProcessingIdentity $pair[1] $pair[0] }
+    $pair=ManagedPair; $pair[1].Id=$pair[0].Id; Refuses { Get-GsxProcessingIdentity $pair[0] $pair[1] }
+}
+Check 'Managed readiness accepts retained or fresh objects only with paired saved restore evidence' {
+    ReadyCheck (ManagedReady); $ready=ManagedReady; $ready.CreatedFresh=$true; ReadyCheck $ready
+}
+Check 'Managed readiness refuses stale process and replacement or changed endpoints' {
+    $ready=ManagedReady; $ready.ProcessId=124; Refuses { ReadyCheck $ready }
+    $ready=ManagedReady; $ready.Endpoint.Id='different'; Refuses { ReadyCheck $ready }
+    $ready=ManagedReady; $ready.PlaybackEndpoint.Usb.InstanceId='OTHER'; Refuses { ReadyCheck $ready }
+}
+Check 'Managed readiness refuses false restore policy, waiting state, old generation and reported errors' {
+    foreach ($field in @('Mode','State','StartupRestorePolicy')) {
+        $ready=ManagedReady; $ready.$field='wrong'; Refuses { ReadyCheck $ready }
+    }
+    foreach ($value in @($null,'1',2)) { $ready=ManagedReady; $ready.Generation=$value; Refuses { ReadyCheck $ready } }
+    $ready=ManagedReady; $ready.Error='failure'; Refuses { ReadyCheck $ready }
+}
+Check 'Managed readiness refuses missing and non-boolean evidence flags' {
+    foreach ($field in @('SettingsWrites','AutomaticRestore')) {
+        foreach ($value in @($null,$false,1,'true')) { $ready=ManagedReady; $ready.$field=$value; Refuses { ReadyCheck $ready } }
+    }
+    $ready=ManagedReady; $ready.PSObject.Properties.Remove('CreatedFresh'); Refuses { ReadyCheck $ready }
+}
+Check 'Managed readback must match both microphone and playback pages' {
+    $ready=ManagedReady; $ready.Effects.Microphone.GatePercent=99; Refuses { ReadyCheck $ready }
+    $ready=ManagedReady; $ready.Effects.Playback.SurroundEnabled=$true; Refuses { ReadyCheck $ready }
+    $ready=ManagedReady; $ready.Effects.Playback.Reverb=$null; Refuses { ReadyCheck $ready }
+}
+Check 'Managed read-only validation checks both saved pages and the diagnostic snapshot' {
+    ValidationCheck (ManagedValidation)
+    $report=ManagedValidation; $report.SavedProcessing.Effects.Playback.SurroundEnabled=$true; Refuses { ValidationCheck $report }
+    $report=ManagedValidation; $report.Effects.GatePercent=99; Refuses { ValidationCheck $report }
+}
+Check 'Managed preparation refuses writable flags, non-boolean flags, foreign record and missing opt-in' {
+    foreach ($field in @('SettingsWrites','CreatesMissingObjects','CreatedFresh','DiscoveryActivatesAudioClients')) {
+        foreach ($value in @($null,$true,'false',0)) { $report=ManagedValidation; $report.$field=$value; Refuses { ValidationCheck $report } }
+    }
+    $report=ManagedValidation; $report.SavedProcessing.RestoreOnConnect=$false; Refuses { ValidationCheck $report }
+    $report=ManagedValidation; $report.SavedProcessing.DeviceIdentity='OTHER'; Refuses { ValidationCheck $report }
+}
+Check 'Managed preparation pass is separate from a physical restore pass' {
+    Equal (Get-GsxManagedOutcome $true $false 'NotRequested' $false 'NotRun' $null $null $null $false $null $null $true $false $false) 'Passed'
+    Equal (Get-GsxManagedOutcome $true $true 'NotRequested' $false 'NotRun' $null $null $null $false $null $null $true $false $false) 'Failed'
+}
+Check 'Managed pilot requires handoff, exact GSX restoration before/after release and unchanged saved file' {
+    Equal (Get-GsxManagedOutcome $true $true 'Passed' $true 'Passed' $true $true $true $true $true $true $true $false $false) 'Passed'
+    foreach ($field in @(5,6,7,11)) {
+        foreach ($value in @($null,$false,'true',1)) {
+            $arguments=@($true,$true,'Passed',$true,'Passed',$true,$true,$true,$true,$true,$true,$true,$false,$false)
+            $arguments[$field]=$value; Equal (Get-GsxManagedOutcome @arguments) 'Failed'
+        }
+    }
+}
+Check 'Managed B20 preservation evidence is required only when B20 was captured' {
+    Equal (Get-GsxManagedOutcome $true $true 'Passed' $true 'Passed' $true $true $true $false $null $null $true $false $false) 'Passed'
+    Equal (Get-GsxManagedOutcome $true $true 'Passed' $true 'Passed' $true $true $true $true $null $true $true $false $false) 'Failed'
+    Equal (Get-GsxManagedOutcome $true $true 'Passed' $true 'Passed' $true $true $true $true $true $false $true $false $false) 'Failed'
+}
+Check 'Managed errors, differences, failed controls and unverified restore cannot become success' {
+    Equal (Get-GsxManagedOutcome $true $true 'Passed' $true 'Passed' $true $true $true $true $true $true $true $true $false) 'Failed'
+    Equal (Get-GsxManagedOutcome $true $true 'Passed' $true 'Passed' $true $true $true $true $true $true $true $false $true) 'Failed'
+    Equal (Get-GsxManagedOutcome $true $true 'Passed' $false 'Passed' $true $true $true $true $true $true $true $false $false) 'Failed'
+    Equal (Get-GsxManagedOutcome $true $true 'Passed' $true 'Failed' $true $true $true $true $true $true $true $false $false) 'Failed'
+}
 $failures=@($checks | Where-Object { !$_.Passed })
 $path=[IO.Path]::GetFullPath($ReportPath)
 [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path)) | Out-Null

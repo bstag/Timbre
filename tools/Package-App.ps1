@@ -1,11 +1,12 @@
 [CmdletBinding()]
-param([switch]$SkipBuild)
+param([switch]$SkipBuild, [string]$OutputDirectory = 'dist')
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'DocumentationPaths.ps1')
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-if (!$SkipBuild) { & (Join-Path $PSScriptRoot 'Test-App.ps1') }
+if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { throw 'OutputDirectory must not be empty.' }
+$app=if ([IO.Path]::IsPathRooted($OutputDirectory)) { [IO.Path]::GetFullPath($OutputDirectory) } else { [IO.Path]::GetFullPath((Join-Path $root $OutputDirectory)) }
+if (!$SkipBuild) { & (Join-Path $PSScriptRoot 'Test-App.ps1') -OutputDirectory $app }
 & (Join-Path $PSScriptRoot 'Test-Documentation.ps1') -Root $root
-$app=Join-Path $root 'dist'
 $checks=Join-Path $root 'tests\Timbre.Tests\bin\Release\net9.0'
 if ((Get-FileHash -LiteralPath (Join-Path $app 'Timbre.Core.dll')).Hash -ne (Get-FileHash -LiteralPath (Join-Path $checks 'Timbre.Core.dll')).Hash) { throw 'App/test binaries differ. Run Test-App.ps1 before packaging.' }
 $release=Join-Path $root 'artifacts\releases'

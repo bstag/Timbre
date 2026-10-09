@@ -1,8 +1,8 @@
 [CmdletBinding()]
-param([switch]$StopSuiteTemporarily, [switch]$HardwareAudio, [switch]$HardwarePlaybackAudio, [switch]$ReconnectGsx, [switch]$RestartAudioEngine)
+param([switch]$StopSuiteTemporarily, [switch]$HardwareAudio, [switch]$HardwarePlaybackAudio, [switch]$ReconnectGsx, [switch]$RestartAudioEngine, [switch]$ManagedLifecycle, [string]$BuildDirectory = 'dist')
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'GsxInitializationChecks.ps1')
-Assert-GsxInitializationOptions ([bool]$StopSuiteTemporarily) ([bool]$HardwareAudio) ([bool]$HardwarePlaybackAudio) ([bool]$ReconnectGsx) ([bool]$RestartAudioEngine)
+Assert-GsxInitializationOptions ([bool]$StopSuiteTemporarily) ([bool]$HardwareAudio) ([bool]$HardwarePlaybackAudio) ([bool]$ReconnectGsx) ([bool]$RestartAudioEngine) ([bool]$ManagedLifecycle)
 if ($StopSuiteTemporarily) {
     $principal=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
     if (!$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -11,10 +11,17 @@ if ($StopSuiteTemporarily) {
 }
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . (Join-Path $PSScriptRoot 'ApoRecoveryChecks.ps1')
-$hostExe=Join-Path $root 'dist\host\Timbre.Host.exe'
-$appExe=Join-Path $root 'dist\Timbre.exe'
+if ([string]::IsNullOrWhiteSpace($BuildDirectory)) { throw 'BuildDirectory must not be empty.' }
+$buildDirectoryPath=if ([IO.Path]::IsPathRooted($BuildDirectory)) { [IO.Path]::GetFullPath($BuildDirectory) } else { [IO.Path]::GetFullPath((Join-Path $root $BuildDirectory)) }
+$hostExe=Join-Path $buildDirectoryPath 'host\Timbre.Host.exe'
+$appExe=Join-Path $buildDirectoryPath 'Timbre.exe'
 $testDll=Join-Path $root 'tests\Timbre.Tests\bin\Release\net9.0\Timbre.Tests.dll'
 foreach ($path in @($hostExe,$appExe,$testDll)) { if (!(Test-Path -LiteralPath $path)) { throw 'Build the app, host and tests first.' } }
+if ($ManagedLifecycle) {
+    $coreCopies=@((Join-Path $buildDirectoryPath 'Timbre.Core.dll'),(Join-Path $buildDirectoryPath 'host\Timbre.Core.dll'),(Join-Path (Split-Path $testDll) 'Timbre.Core.dll'))
+    $coreHashes=@($coreCopies | ForEach-Object { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash } | Select-Object -Unique)
+    if ($coreHashes.Count -ne 1) { throw 'Managed pilot requires matching app, helper and test core binaries. Build and verify the selected directory first.' }
+}
 if (@(Get-Process Timbre.Host,EposControl.Host -ErrorAction SilentlyContinue).Count) { throw 'Close the existing experimental helper before this test.' }
 $service=Get-Service EPOSGamingSuiteService
 if ($service.Status -ne 'Running') { throw 'Start the vendor service first to capture the current GSX settings.' }
@@ -26,6 +33,8 @@ $reportRoot=Join-Path $root ('artifacts\gsx-initialization\'+[DateTime]::UtcNow.
 New-Item -ItemType Directory -Path $reportRoot | Out-Null
 $stopFile=Join-Path $reportRoot 'stop-hosts'
 $startupPath=Join-Path $reportRoot 'startup-state.json'
+$stateDirectory=Join-Path $reportRoot 'isolated-gsx-processing-state'
+$savedStatePath=$null; $savedStateHash=$null; $savedStateUnchanged=$null
 $processes=[Collections.Generic.List[object]]::new()
 $errors=[Collections.Generic.List[string]]::new()
 $warnings=[Collections.Generic.List[string]]::new()
@@ -40,6 +49,8 @@ $disconnectObserved=$false; $returnObserved=$false
 $audioStopAttempted=$false; $audioRestartVerified=$false
 $gsxPreparedEntry=$null
 $vendorHandoffObserved=$null; $vendorHandoffWaitSeconds=$null
+$managedOutcome='NotRequested'; $managedRestoreVerified=$false
+$fullGsxAfterRelease=$null; $fullB20AfterRelease=$null
 function Save-Diagnostics([string]$name) {
     $path=Join-Path $reportRoot ($name+'.json')
     $process=Start-Process -FilePath $appExe -ArgumentList @('--diagnostics',('"'+$path+'"')) -WindowStyle Hidden -PassThru -Wait
@@ -77,11 +88,25 @@ function Hash-Bytes([byte[]]$bytes) {
     $algorithm=[Security.Cryptography.SHA256]::Create()
     try { return [BitConverter]::ToString($algorithm.ComputeHash($bytes)).Replace('-','') } finally { $algorithm.Dispose() }
 }
+function Save-ManagedState {
+    # Baseline values in a new isolated store: no changes to the user's real restore policy.
+    New-Item -ItemType Directory -Path $stateDirectory | Out-Null
+    $identity=Get-GsxProcessingIdentity $mic $output
+    $fileName=(Hash-Bytes ([Text.Encoding]::UTF8.GetBytes($identity)))+'.json'
+    $script:savedStatePath=Join-Path $stateDirectory $fileName
+    $record=[ordered]@{SchemaVersion=1;DeviceIdentity=$identity;SavedAtUtc=[DateTime]::UtcNow.ToString('o');
+        Effects=[ordered]@{Microphone=$micControl.Microphone.Value;Playback=$soundControl.Playback.Value};RestoreOnConnect=$true}
+    [IO.File]::WriteAllText($savedStatePath,($record | ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
+    $script:savedStateHash=(Get-FileHash -LiteralPath $savedStatePath -Algorithm SHA256).Hash
+}
 function Start-Helper([string]$mode,[string]$name) {
     $directory=Join-Path $reportRoot $name
     $duration=if($ReconnectGsx -or $RestartAudioEngine){'600'}else{'300'}
     $arguments=@($mode,'--report-directory',('"'+$directory+'"'),'--stop-file',('"'+$stopFile+'"'),'--seconds',$duration)
     if ($mode -ne '--retain-b20') { $arguments+=@('--initial-state',('"'+$startupPath+'"')) }
+    if ($mode -in @('--manage-gsx','--validate-managed-gsx')) {
+        $arguments+=@('--state-directory',('"'+$stateDirectory+'"'),'--device-instance',('"'+$mic.Usb.InstanceId+'"'))
+    }
     $process=[Diagnostics.Process]::new()
     $process.StartInfo.FileName=$hostExe; $process.StartInfo.Arguments=($arguments -join ' ')
     $process.StartInfo.UseShellExecute=$false; $process.StartInfo.CreateNoWindow=$true
@@ -97,7 +122,7 @@ function Wait-Ready($entry,[string]$file='ready.json') {
         $stoppedPath=Join-Path $entry.Directory 'stopped.json'
         if (Test-Path -LiteralPath $stoppedPath) {
             $stopped=Get-Content -LiteralPath $stoppedPath -Raw | ConvertFrom-Json
-            if ($stopped.Error -match 'Existing effects objects are still present|Partial effects objects|appeared during startup') {
+            if (!$ManagedLifecycle -and $stopped.Error -match 'Existing effects objects are still present|Partial effects objects|appeared during startup') {
                 $script:initializationOutcome='BlockedByExistingObjects'
                 throw 'Fresh GSX initialization was refused because native objects are still retained. No existing memory was overwritten.'
             }
@@ -160,9 +185,12 @@ try {
     }
     $startup=[ordered]@{SchemaVersion=1;DeviceInstance=$mic.Usb.InstanceId;MicrophoneEndpointId=$mic.Id;PlaybackEndpointId=$output.Id;Microphone=$micControl.Microphone.Value;Playback=$soundControl.Playback.Value;DiagnosticSeed=[Convert]::ToBase64String($gsxBefore)}
     [IO.File]::WriteAllText($startupPath,($startup | ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
-    $validation=Start-Helper '--validate-gsx' 'validate'
+    if ($ManagedLifecycle) { Save-ManagedState }
+    $validationMode=if($ManagedLifecycle){'--validate-managed-gsx'}else{'--validate-gsx'}
+    $validation=Start-Helper $validationMode 'validate'
     $validated=Wait-Ready $validation 'validated.json'
     if (!$validation.Process.WaitForExit(5000) -or $validation.Process.ExitCode -ne 0 -or $validated.SettingsWrites -or $validated.CreatesMissingObjects) { throw 'Read-only GSX startup validation failed.' }
+    if ($ManagedLifecycle) { Assert-GsxManagedValidation $validated $validation.Process.Id $mic $output $micControl.Microphone.Value $soundControl.Playback.Value }
     $prepared=$true
     if ($StopSuiteTemporarily) {
         if ($b20Before) { $retained=Start-Helper '--retain-b20' 'retain-b20'; Wait-Ready $retained | Out-Null }
@@ -202,7 +230,7 @@ try {
             Wait-GsxConnection $true; $returnObserved=$true
             Write-Host 'Same physical GSX returned. Attempting fresh initialization; avoid changing controls.'
         }
-        $initializationOutcome='Failed'
+        if ($ManagedLifecycle) { $managedOutcome='Failed' } else { $initializationOutcome='Failed' }
         if ($RestartAudioEngine) {
             $entry=$gsxPreparedEntry
             if ($entry.Process.HasExited -or (Get-Service Audiosrv).Status -ne 'Stopped') { throw 'Prepared GSX helper or paused Windows Audio is unavailable.' }
@@ -210,12 +238,18 @@ try {
             $requestPath=Join-Path $entry.Directory 'initialize-request.json'
             [IO.File]::WriteAllText(($requestPath+'.tmp'),($request | ConvertTo-Json),[Text.UTF8Encoding]::new($false))
             Move-Item -LiteralPath ($requestPath+'.tmp') -Destination $requestPath
-        } else { $entry=Start-Helper '--initialize-gsx' 'initialize' }
+        } elseif ($ManagedLifecycle) { $entry=Start-Helper '--manage-gsx' 'managed' }
+        else { $entry=Start-Helper '--initialize-gsx' 'initialize' }
         $hostProcess=$entry.Process; $ready=Wait-Ready $entry
         Require-ServiceStopped
-        if (!$ready.CreatedFresh -or $ready.Endpoint.Usb.InstanceId -ne $mic.Usb.InstanceId -or $ready.PlaybackEndpoint.Usb.InstanceId -ne $mic.Usb.InstanceId) { throw 'Fresh GSX readiness identity is invalid.' }
-        $initializationOutcome='Passed'
-        if ((Hash-Bytes (Read-Apo '0098')) -ne (Hash-Bytes $gsxBefore)) { throw 'Fresh GSX memory differs from the complete starting snapshot.' }
+        if ($ManagedLifecycle) {
+            Assert-GsxManagedReadiness $ready $hostProcess.Id $mic $output $micControl.Microphone.Value $soundControl.Playback.Value
+            $managedRestoreVerified=$true; $managedOutcome='Passed'
+        } else {
+            if (!$ready.CreatedFresh -or $ready.Endpoint.Usb.InstanceId -ne $mic.Usb.InstanceId -or $ready.PlaybackEndpoint.Usb.InstanceId -ne $mic.Usb.InstanceId) { throw 'Fresh GSX readiness identity is invalid.' }
+            $initializationOutcome='Passed'
+        }
+        if ((Hash-Bytes (Read-Apo '0098')) -ne (Hash-Bytes $gsxBefore)) { throw 'GSX host memory differs from the complete starting snapshot.' }
         if ($RestartAudioEngine) {
             Start-Service Audiosrv -ErrorAction Stop
             (Get-Service Audiosrv).WaitForStatus('Running',[TimeSpan]::FromSeconds(15))
@@ -280,7 +314,7 @@ finally {
             Start-Process -FilePath $suitePath -WindowStyle Hidden
         }
     } catch { $errors.Add('Suite UI restoration: '+$_.Exception.Message) }
-    if ($ready -and $ready.CreatedFresh -and $hostProcess -and !$hostProcess.HasExited -and (Get-Service EPOSGamingSuiteService).Status -eq 'Running') {
+    if ($ready -and ($ready.CreatedFresh -or $ManagedLifecycle) -and $hostProcess -and !$hostProcess.HasExited -and (Get-Service EPOSGamingSuiteService).Status -eq 'Running') {
         try { Wait-VendorHandoff } catch { $errors.Add('Vendor ownership handoff: '+$_.Exception.Message) }
     }
     [IO.File]::WriteAllText($stopFile,'stop')
@@ -314,14 +348,38 @@ finally {
                     }
                 }
             }
+            if ($ManagedLifecycle -and $gsxBefore) {
+                $afterGsx=Read-Apo '0098'; [IO.File]::WriteAllBytes((Join-Path $reportRoot 'gsx-after-release.bin'),$afterGsx)
+                $fullGsxAfterRelease=(Hash-Bytes $afterGsx) -eq (Hash-Bytes $gsxBefore)
+                if (!$fullGsxAfterRelease) { $differences.Add('Complete GSX buffer differs after managed helper release.') }
+                if ($b20Before) {
+                    $afterB20=Read-Apo '009f'; [IO.File]::WriteAllBytes((Join-Path $reportRoot 'b20-after-release.bin'),$afterB20)
+                    $fullB20AfterRelease=(Hash-Bytes $afterB20) -eq (Hash-Bytes $b20Before)
+                    if (!$fullB20AfterRelease) { $differences.Add('Complete B20 buffer differs after managed helper release.') }
+                }
+            }
         }
     } catch { $errors.Add('Recovery verification: '+$_.Exception.Message) }
     $finalService=(Get-Service EPOSGamingSuiteService).Status.ToString()
     if ($finalService -ne 'Running') { $errors.Add('Vendor service was not restored to Running.') }
     if ($audioStopAttempted -and (Get-Service Audiosrv).Status -ne 'Running') { $errors.Add('Windows Audio was not restored to Running.') }
     if ($uiClosed -and ($suiteProcesses.Count -gt 0) -ne (@(Get-Process EPOSGamingSuite -ErrorAction SilentlyContinue).Count -gt 0)) { $errors.Add('Suite UI startup state differs.') }
-    $outcome=Get-GsxInitializationOutcome $prepared ([bool]$StopSuiteTemporarily) $initializationOutcome $controlOutcome $audioOutcome $playbackAudioOutcome ([bool]$HardwareAudio) ([bool]$HardwarePlaybackAudio) ($errors.Count -gt 0) ($differences.Count -gt 0)
+    if ($ManagedLifecycle -and $savedStatePath) {
+        try {
+            $savedStateUnchanged=(Get-FileHash -LiteralPath $savedStatePath -Algorithm SHA256).Hash -eq $savedStateHash
+            if (!$savedStateUnchanged) { $differences.Add('Isolated saved processing record changed during the managed pilot.') }
+        } catch { $errors.Add('Saved-state verification: '+$_.Exception.Message) }
+    }
+    if ($ManagedLifecycle) {
+        $outcome=Get-GsxManagedOutcome $prepared ([bool]$StopSuiteTemporarily) $managedOutcome $managedRestoreVerified $controlOutcome $vendorHandoffObserved $fullGsxRestored $fullGsxAfterRelease ([bool]$b20Before) $fullB20Preserved $fullB20AfterRelease $savedStateUnchanged ($errors.Count -gt 0) ($differences.Count -gt 0)
+    } else {
+        $outcome=Get-GsxInitializationOutcome $prepared ([bool]$StopSuiteTemporarily) $initializationOutcome $controlOutcome $audioOutcome $playbackAudioOutcome ([bool]$HardwareAudio) ([bool]$HardwarePlaybackAudio) ($errors.Count -gt 0) ($differences.Count -gt 0)
+    }
     $summary=[ordered]@{CollectedAtUtc=[DateTime]::UtcNow.ToString('o');Outcome=$outcome;Prepared=$prepared;ServiceStopRequested=[bool]$StopSuiteTemporarily;ServiceStopAttempted=$serviceStopAttempted;InitializationOutcome=$initializationOutcome;CreatedFresh=($null -ne $ready -and $ready.CreatedFresh);ControlOutcome=$controlOutcome;AudioOutcome=$audioOutcome;PlaybackAudioRequested=[bool]$HardwarePlaybackAudio;PlaybackAudioOutcome=$playbackAudioOutcome;VendorHandoffObserved=$vendorHandoffObserved;VendorHandoffWaitSeconds=$vendorHandoffWaitSeconds;FullGsxBufferRestored=$fullGsxRestored;FullB20BufferPreserved=$fullB20Preserved;FinalServiceState=$finalService;AudioEngineRestartRequested=[bool]$RestartAudioEngine;AudioEngineStopAttempted=$audioStopAttempted;AudioEngineRestartedWithFreshHost=$audioRestartVerified;FinalAudioServiceState=(Get-Service Audiosrv).Status.ToString();SettingsDifferences=$differences.ToArray();Errors=$errors.ToArray();Warnings=$warnings.ToArray();ColdStartTested=$false;ReconnectRequested=[bool]$ReconnectGsx;DisconnectObserved=$disconnectObserved;ReturnObserved=$returnObserved;PhysicalReconnectObserved=($disconnectObserved -and $returnObserved);ReconnectTested=$false;ManagedReconnectRecoveryTested=$false;AutomaticRestore=$false;StartupPolicy='Explicit current diagnostic snapshot only';Stages=$events.ToArray()}
+    $summary.ManagedLifecycleRequested=[bool]$ManagedLifecycle; $summary.ManagedOutcome=$managedOutcome
+    $summary.ManagedRestoreVerified=$managedRestoreVerified; $summary.SavedStateUnchanged=$savedStateUnchanged
+    $summary.FullGsxBufferRestoredAfterRelease=$fullGsxAfterRelease; $summary.FullB20BufferPreservedAfterRelease=$fullB20AfterRelease
+    if ($ManagedLifecycle) { $summary.AutomaticRestore=$managedRestoreVerified; $summary.StartupPolicy='Isolated per-device typed state, opt-in restore'; $summary.InitializationOutcome='NotRequested' }
     $summary | ConvertTo-Json -Depth 12 | Set-Content (Join-Path $reportRoot 'summary.json') -Encoding UTF8
     Write-Output ('GSX initialization reports: '+$reportRoot)
 }
@@ -332,5 +390,6 @@ if ($outcome -eq 'BlockedByExistingObjects') {
     exit 3
 }
 if ($outcome -eq 'Inconclusive') { Write-Warning ('Initialization/control/restoration passed; microphone audio: '+$audioOutcome+'; playback audio: '+$playbackAudioOutcome+'. See the individual reports.'); exit 2 }
-if ($StopSuiteTemporarily) { Write-Output 'GSX fresh initialization, microphone/playback controls and recovery passed.' }
+if ($ManagedLifecycle -and $StopSuiteTemporarily) { Write-Output 'GSX managed saved-state restoration, microphone/playback controls and recovery passed.' }
+elseif ($StopSuiteTemporarily) { Write-Output 'GSX fresh initialization, microphone/playback controls and recovery passed.' }
 else { Write-Output 'Read-only GSX preparation passed. No service changes, vendor-object creation or settings writes.' }

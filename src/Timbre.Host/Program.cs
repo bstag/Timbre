@@ -21,7 +21,8 @@ var thread = new Thread(() => {
         var managedGsx = options.Mode == "--manage-gsx";
         var pausedGsx = options.Mode == "--initialize-gsx-paused";
         var initializeGsx = options.Mode == "--initialize-gsx" || pausedGsx;
-        var validateGsx = options.Mode == "--validate-gsx";
+        var validateManagedGsx = options.Mode == "--validate-managed-gsx";
+        var validateGsx = options.Mode == "--validate-gsx" || validateManagedGsx;
         if (File.Exists(options.StopFile)) throw new IOException("The stop file already exists; choose a fresh run directory.");
         if (Directory.Exists(options.ReportDirectory) && Directory.EnumerateFileSystemEntries(options.ReportDirectory).Any())
             throw new IOException("The report directory must be empty to prevent stale readiness reports.");
@@ -53,9 +54,18 @@ var thread = new Thread(() => {
             WindowsApoMemory.ValidateIdentity(microphone, discovered);
             WindowsApoMemory.ValidatePlaybackIdentity(playback, discovered);
             if (validateGsx) {
+                SavedGsxProcessingState? saved = null;
+                if (validateManagedGsx) {
+                    if (!options.DeviceInstance!.Equals(startup.DeviceInstance, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("Managed validation target differs from the diagnostic snapshot.");
+                    saved = new GsxProcessingStateStore(options.StateDirectory!).Load(microphone, playback)
+                        ?? throw new InvalidDataException("Managed validation requires a saved GSX processing record.");
+                    MicrophoneEffects.ValidateUpdate(microphone, startup.Microphone, saved.Effects.Microphone);
+                }
                 Save("validated", new { ProcessId = Environment.ProcessId, Started = started, Endpoint = microphone,
                     PlaybackEndpoint = playback, Effects = startup.Microphone, Playback = startup.Playback,
-                    Mode = "ValidateGsxStartup", DiscoveryActivatesAudioClients = false,
+                    Mode = validateManagedGsx ? "ValidateManagedGsxStartup" : "ValidateGsxStartup", SavedProcessing = saved,
+                    DiscoveryActivatesAudioClients = false,
                     SettingsWrites = false, CreatesMissingObjects = false, CreatedFresh = false });
                 Console.WriteLine("GSX startup snapshot validated; no vendor objects opened or created.");
             } else {

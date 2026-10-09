@@ -10,7 +10,7 @@ Run scripts from the repository root in 64-bit PowerShell. Normal source verific
 | `Test-App.ps1` | Build and run offline regressions, probe guards, and demo WPF scenarios. Hardware flags are explicit opt-in. |
 | `Test-GsxInitializationChecks.ps1` | Fixture-free offline option/evidence/outcome checks for the fresh GSX runner; included in normal source verification. |
 | `Test-Documentation.ps1` | Check local Markdown file links in source or a portable package. |
-| `Package-App.ps1` | Verify source by default, prepare ZIP, hash payload, and check extraction/docs. |
+| `Package-App.ps1` | Verify source by default, prepare ZIP, hash payload, and check extraction/docs. Build/test/package accept `-OutputDirectory` to keep the running `dist` app open. |
 | `portable/` | Templates copied to the extracted ZIP root, including `START-HERE.md` and verification/launch scripts. |
 
 See [building/testing](../docs/development/building-and-testing.md) and [releasing](../docs/development/releasing.md).
@@ -28,6 +28,8 @@ For playback DSP after fresh initialization, `Test-GsxInitialization.ps1 -StopSu
 The GSX initializer now waits up to 45 seconds for actual vendor handle ownership before helper release, instead of relying on service Running alone. Its corrected hardware run passed, with ownership observed after a 4.62-second wait and exact post-release restoration. The recovery script observes asynchronous service completion for up to 60 seconds while retaining B20; exceptions still fail its result. The first recovery timed out but later independent captures confirmed exact recovery; the separately modified recovery script's delayed-transition path still needs a new hardware run. Neither script is an installed background helper.
 
 `Test-ManagedHostProcess.ps1` checks an intentionally absent B20 target without hardware writes; `-Device GSX300` exercises the GSX managed helper instead. Both check waiting, competing-owner refusal and prompt stop/restart, with no vendor-object creation or service changes. See [managed GSX processing](../docs/research/gsx-host-lifecycle.md) for typed saved state and the separate bounded helper. `Test-GsxPreparedHost.ps1` exercises prepared discovery/refusal paths; consult its parameters and GSX guide before running it.
+
+`Test-GsxInitialization.ps1 -ManagedLifecycle` performs read-only preparation with an isolated copy of the current GSX saved settings. Adding `-StopSuiteTemporarily` explicitly opts into the administrator managed-restoration/control/recovery pilot; Windows Audio remains running, and no audio measurement, unplugging or reboot is needed. It requires paired saved-state readback, actual vendor handle ownership before helper release, complete buffer preservation and unchanged saved state. It refuses combinations with the restart/reconnect/audio switches. A separate verified build can be selected using `-BuildDirectory`, prepared with `Test-App.ps1 -OutputDirectory`; both use `dist` by default. Read [the pilot guide](../docs/research/gsx-host-lifecycle.md#managed-pilot-preparation-on-2026-10-09) before service-stop testing.
 
 `Start-B20ReconnectCheck.ps1` launches a previously prepared administrator pilot. It requires ignored preparation/report inputs under `artifacts/apo-host` and validates saved-state identity/hash. A fresh checkout does not contain those inputs. `Test-ApoRecoveryChecks.ps1` replays a specific historical report set; it is not part of the clean-checkout suite.
 

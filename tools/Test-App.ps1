@@ -1,11 +1,13 @@
 [CmdletBinding()]
-param([switch]$SkipBuild, [ValidateSet('009f','0098')][string]$HardwareEffects, [ValidateSet('009f','0098')][string]$HardwareAudio, [ValidateSet('009f')][string]$HardwareSidetone, [switch]$HardwarePlayback, [switch]$HardwareLoopback, [switch]$HardwarePlaybackAudio, [switch]$HardwareGsxSidetone, [ValidateSet('009f','0098')][string]$MonitorPackets)
+param([switch]$SkipBuild, [ValidateSet('009f','0098')][string]$HardwareEffects, [ValidateSet('009f','0098')][string]$HardwareAudio, [ValidateSet('009f')][string]$HardwareSidetone, [switch]$HardwarePlayback, [switch]$HardwareLoopback, [switch]$HardwarePlaybackAudio, [switch]$HardwareGsxSidetone, [ValidateSet('009f','0098')][string]$MonitorPackets, [string]$OutputDirectory = 'dist')
 $ErrorActionPreference='Stop'
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { throw 'OutputDirectory must not be empty.' }
+$buildDirectory=if ([IO.Path]::IsPathRooted($OutputDirectory)) { [IO.Path]::GetFullPath($OutputDirectory) } else { [IO.Path]::GetFullPath((Join-Path $root $OutputDirectory)) }
 Push-Location $root
 try {
     if (!$SkipBuild) {
-        & (Join-Path $PSScriptRoot 'Build-App.ps1')
+        & (Join-Path $PSScriptRoot 'Build-App.ps1') -OutputDirectory $buildDirectory
         dotnet restore tests/Timbre.Tests --configfile NuGet.Config --nologo -v quiet
         if ($LASTEXITCODE) { throw 'Test restore failed' }
         dotnet build tests/Timbre.Tests --no-restore -c Release --nologo -v quiet
@@ -23,8 +25,8 @@ try {
         dotnet $gsxProbe --self-test
         if ($LASTEXITCODE) { throw 'GSX research guard tests failed' }
     } elseif ($SkipBuild) { Write-Warning 'GSX research guard checks skipped: build tools/GsxSidetoneProbe first.' }
-    & (Join-Path $root 'dist/Timbre.exe') --render-demo (Join-Path $root 'artifacts/app-preview.png') | Out-Null
-    if ($LASTEXITCODE) { throw 'WPF UI tests failed; see dist/startup-error.txt' }
+    & (Join-Path $buildDirectory 'Timbre.exe') --render-demo (Join-Path $root 'artifacts/app-preview.png') | Out-Null
+    if ($LASTEXITCODE) { throw ('WPF UI tests failed; see '+(Join-Path $buildDirectory 'startup-error.txt')) }
     if ($HardwareEffects) {
         # Explicit opt-in: changes gate/filter, switches and EQ, then restores their starting values.
         dotnet $testDll --hardware-effects $HardwareEffects --report ('artifacts/effects-verification-'+$HardwareEffects+'.json')

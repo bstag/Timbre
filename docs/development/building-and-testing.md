@@ -19,7 +19,13 @@ Run from the repository root:
 
 Build produces `dist/Timbre.exe` and the separate experimental helper under `dist/host`. These outputs are ignored. `Start-Timbre.cmd` requires a successful build; it is not a prebuilt download.
 
-Close a running copy from `dist` before rebuilding into that directory; Windows locks its loaded DLLs. For verification while keeping the live app open, use a separate source checkout/copy.
+Close a running copy from `dist` before rebuilding into that directory; Windows locks its loaded DLLs. To keep the live app open, publish and verify separate outputs:
+
+```powershell
+.\tools\Test-App.ps1 -OutputDirectory artifacts/verification-build
+```
+
+`Build-App.ps1` and `Package-App.ps1` also accept `-OutputDirectory`. These scripts resolve relative paths against the repository root and retain `dist` by default. The test runner uses the chosen executable for demo UI verification. Experimental GSX checks can consume those matching outputs with `Test-GsxInitialization.ps1 -BuildDirectory artifacts/verification-build`; this does not change the running app or its storage. After verification, `Package-App.ps1 -SkipBuild -OutputDirectory artifacts/verification-build` packages the same selected binaries and checks their core hash against the tests.
 
 ## Normal verification
 
