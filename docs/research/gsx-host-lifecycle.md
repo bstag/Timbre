@@ -82,7 +82,7 @@ The live pilot captures a fresh baseline, holds B20 read-only, briefly closes th
 
 Recovery starts EPOS support while the helper still holds objects, requires the current service process to own all three GSX handles, then releases our helpers. Both complete buffers are compared before and after release, all captured Windows/processing/sidetone controls are compared with baseline, and the isolated saved file must remain unchanged. Missing evidence, forced helper termination, handoff failure, recovery errors or setting differences fail the overall result. Reports distinguish read-only preparation, managed restoration, fresh creation and audio measurements.
 
-The managed hardware pilot below passed. This control-only pilot does not establish physical managed reconnect, cold boot, actual DSP response or differing saved-state precedence on hardware; isolated/native tests already cover the latter policy. Managed mode cannot be combined with audio-engine restart, physical reconnect or audio measurements in this pilot runner.
+The managed hardware pilot below passed. This control-only pilot does not establish physical managed reconnect, cold boot, actual DSP response or differing saved-state precedence on hardware; isolated/native tests already cover the latter policy. Managed mode cannot be combined with audio-engine restart, fresh-initializer `-ReconnectGsx` or audio measurements. The separate `-ManagedReconnect` extension below observes a second connection of the same running managed helper.
 
 ## Managed hardware pilot on 2026-10-09
 
@@ -119,3 +119,24 @@ On removal, Timbre reported only the two B20 endpoints and selected B20 micropho
 Cleanup restored the exact original saved file, timestamp and opt-out preference, then explicitly restored its pair through the UI. Independent final diagnostics found zero captured control differences; both complete 4096-byte buffers matched their starting captures, and all pre-existing user JSON hashes were unchanged. GSX sidetone remained at its starting 34.1% in the UI; read-only diagnostics do not issue its USB status query. A local cleanup-script replacement error was corrected before these checks passed; no application source change was required.
 
 Local evidence is under `artifacts/gsx-ui-reconnect-20261009-200706`: preparation, removal, returned and final diagnostics; original/test saved records; user-file/service baselines; and `assessment.json`. Complete captures are the corresponding `gsx-ui-reconnect-*` and `b20-ui-reconnect-*` files under `artifacts`. This proves physical **app** reconnect and differing saved-value precedence with the vendor interface available. Physical **managed-helper** reconnect with vendor support stopped, fresh managed creation, cold boot and service installation remain outstanding; control readback does not establish a new DSP/audio result.
+
+## Managed physical reconnect preparation on 2026-10-09
+
+`Test-GsxInitialization.ps1 -ManagedLifecycle -ManagedReconnect` prepares the same isolated opted-in baseline record and validates it without changing services or processing. Adding `-StopSuiteTemporarily` opts into the administrator physical reconnect test. Unlike `-ReconnectGsx`, the managed option starts the helper before unplugging and requires its first saved-state connection, independently observed device removal, a `WaitingForDevice` heartbeat with cleared endpoints/effects, and a second `Connected` generation with paired saved-state readback. Reusing the first readiness report cannot pass.
+
+When a brief GSX interruption and physical unplug/replug are acceptable, leave Timbre and Gaming Suite controls idle and run in administrator PowerShell:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\tools\Test-GsxInitialization.ps1' `
+  -ManagedLifecycle -ManagedReconnect -StopSuiteTemporarily
+```
+
+Keep B20 connected. Unplug GSX only when the script asks, and reconnect only after it reports that **the helper observed removal**. Each physical step allows 60 seconds; helper evidence waits are bounded to ten seconds. Keep GSX connected through control checks and recovery. `-BuildDirectory` can select a separately verified matching build as in the earlier pilot.
+
+The helper must remain alive and EPOS support stopped through both connections and the microphone/playback checks. Returned endpoint IDs may differ, but the physical USB pair must match the captured device. The isolated save uses baseline values; this tests the restoration path/readback rather than differing saved-value precedence. The runner requires the complete GSX buffer to match baseline after reconnect and B20's full buffer to remain unchanged while GSX is absent. Captured Windows level/mute settings are restored if USB reconnect resets them. Windows Audio remains running; USB sidetone is outside the read-only diagnostic comparison.
+
+Recovery uses the established observed vendor-handle handoff, successful helper shutdown, exact before/after-release buffers, captured-control comparisons and unchanged isolated store. Missing removal/waiting/return/generation evidence fails the overall result even if control checks passed. The summary reports physical managed reconnect separately from read-only preparation, fresh creation and audio measurements. This extension is preparation for a hardware check; no physical managed reconnect pass is established yet.
+
+Normal offline/demo verification passed **596 regressions, 131 WPF scenarios, 75 fixture-free PowerShell checks and 9 USB guards**. Nine additional PowerShell cases cover mode separation, changed endpoint IDs, stale/non-numeric generations, helper waiting evidence, required removal/return flags and recovery failures. Both Windows PowerShell 5.1 and PowerShell 7 passed these pure checks. The runner parsed successfully; no app/core/helper binaries changed. Evidence: `artifacts/gsx-managed-reconnect-verification-20261009.log` and the corresponding `gsx-managed-reconnect-rules-ps51-20261009.json` / `-ps7-20261009.json`.
+
+Read-only preparation on the real pair passed in `artifacts/gsx-initialization/20261009-202635-5e4ca896`. The validator read the isolated saved record successfully, both complete buffers matched baseline, final captured controls had zero differences and the isolated store was unchanged. Independent `preparation-assessment.json` also verified every pre-existing user JSON hash and both service process IDs/states unchanged. `ManagedReconnectRequested=true` selects the preparation mode; `ManagedReconnectRecoveryTested=false`, no physical observations and `AutomaticRestore=false` preserve its read-only scope.

@@ -250,6 +250,74 @@ Check 'Managed errors, differences, failed controls and unverified restore canno
     Equal (Get-GsxManagedOutcome $true $true 'Passed' $false 'Passed' $true $true $true $true $true $true $true $false $false) 'Failed'
     Equal (Get-GsxManagedOutcome $true $true 'Passed' $true 'Failed' $true $true $true $true $true $true $true $false $false) 'Failed'
 }
+Check 'Managed reconnect requires managed lifecycle and permits read-only preparation or explicit stopped-service testing' {
+    Refuses { Assert-GsxInitializationOptions $true $false $false $false $false $false $true }
+    Refuses { Assert-GsxInitializationOptions $false $false $false $false $false $false $true }
+    Assert-GsxInitializationOptions $false $false $false $false $false $true $true
+    Assert-GsxInitializationOptions $true $false $false $false $false $true $true
+}
+Check 'Managed reconnect refuses fresh reconnect, audio restart and audio measurement combinations' {
+    Refuses { Assert-GsxInitializationOptions $true $false $false $true $false $true $true }
+    Refuses { Assert-GsxInitializationOptions $true $false $false $false $true $true $true }
+    Refuses { Assert-GsxInitializationOptions $true $true $false $false $false $true $true }
+    Refuses { Assert-GsxInitializationOptions $true $false $true $false $false $true $true }
+}
+Check 'Managed reconnect accepts generation two only for the independently returned physical endpoint pair' {
+    $pair=ManagedPair; $values=ManagedValues; $pair[0].Id='returned-mic'; $pair[1].Id='returned-sound'
+    $ready=ManagedReady; $ready.Endpoint=$pair[0]; $ready.PlaybackEndpoint=$pair[1]; $ready.Generation=2
+    Assert-GsxManagedReadiness $ready 123 $pair[0] $pair[1] $values.Microphone $values.Playback 2
+    Refuses { ReadyCheck $ready }
+    $ready.Endpoint.Id='stale-mic'
+    $current=ManagedPair; $current[0].Id='returned-mic'; $current[1].Id='returned-sound'
+    Refuses { Assert-GsxManagedReadiness $ready 123 $current[0] $current[1] $values.Microphone $values.Playback 2 }
+}
+Check 'Managed reconnect rejects stale or nonnumeric generations and incomplete saved-page readback' {
+    $pair=ManagedPair; $values=ManagedValues
+    foreach($generation in @($null,1,3,'2')) {
+        $ready=ManagedReady; $ready.Generation=$generation
+        Refuses { Assert-GsxManagedReadiness $ready 123 $pair[0] $pair[1] $values.Microphone $values.Playback 2 }
+    }
+    $ready=ManagedReady; $ready.Generation=2; $ready.Effects.Playback.SurroundEnabled=$true
+    Refuses { Assert-GsxManagedReadiness $ready 123 $pair[0] $pair[1] $values.Microphone $values.Playback 2 }
+}
+function ManagedWaiting {
+    [pscustomobject]@{ProcessId=123;Mode='ManageGsxLifecycle';State='WaitingForDevice';Generation=1;
+        Endpoint=$null;PlaybackEndpoint=$null;Effects=$null;Error=$null;CreatedFresh=$false;SettingsWrites=$false;AutomaticRestore=$false}
+}
+Check 'Managed waiting proves removal only with cleared endpoints, effects and writes' {
+    Assert-GsxManagedWaiting (ManagedWaiting) 123 1
+    foreach($field in @('Endpoint','PlaybackEndpoint','Effects','Error')) {
+        $waiting=ManagedWaiting; $waiting.$field='retained'; Refuses { Assert-GsxManagedWaiting $waiting 123 1 }
+    }
+}
+Check 'Managed waiting rejects stale process, stale generation, connected state and missing or nonboolean flags' {
+    foreach($field in @('ProcessId','Generation','State','Mode')) {
+        $waiting=ManagedWaiting; $waiting.$field='wrong'; Refuses { Assert-GsxManagedWaiting $waiting 123 1 }
+    }
+    foreach($field in @('CreatedFresh','SettingsWrites','AutomaticRestore')) {
+        foreach($value in @($true,$null,'false',0)) {
+            $waiting=ManagedWaiting; $waiting.$field=$value; Refuses { Assert-GsxManagedWaiting $waiting 123 1 }
+        }
+    }
+    $waiting=ManagedWaiting; $waiting.Generation='1'; Refuses { Assert-GsxManagedWaiting $waiting 123 1 }
+}
+Check 'Managed reconnect preparation cannot claim physical evidence' {
+    Equal (Get-GsxManagedReconnectOutcome 'Passed' $true $false $false $false $false $false) 'Passed'
+    Equal (Get-GsxManagedReconnectOutcome 'Passed' $true $false $true $false $false $false) 'Failed'
+}
+Check 'Managed reconnect requires removal, helper waiting, return and paired generation restore' {
+    Equal (Get-GsxManagedReconnectOutcome 'Passed' $true $true $true $true $true $true) 'Passed'
+    foreach($field in 3..6) {
+        foreach($value in @($false,$null,'true',1)) {
+            $arguments=@('Passed',$true,$true,$true,$true,$true,$true); $arguments[$field]=$value
+            Equal (Get-GsxManagedReconnectOutcome @arguments) 'Failed'
+        }
+    }
+}
+Check 'Managed reconnect cannot mask failed control, preservation or recovery outcome' {
+    Equal (Get-GsxManagedReconnectOutcome 'Failed' $true $true $true $true $true $true) 'Failed'
+    Equal (Get-GsxManagedReconnectOutcome 'Passed' $false $true $false $false $false $false) 'Passed'
+}
 $failures=@($checks | Where-Object { !$_.Passed })
 $path=[IO.Path]::GetFullPath($ReportPath)
 [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path)) | Out-Null

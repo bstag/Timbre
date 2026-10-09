@@ -1,8 +1,8 @@
 [CmdletBinding()]
-param([switch]$StopSuiteTemporarily, [switch]$HardwareAudio, [switch]$HardwarePlaybackAudio, [switch]$ReconnectGsx, [switch]$RestartAudioEngine, [switch]$ManagedLifecycle, [string]$BuildDirectory = 'dist')
+param([switch]$StopSuiteTemporarily, [switch]$HardwareAudio, [switch]$HardwarePlaybackAudio, [switch]$ReconnectGsx, [switch]$RestartAudioEngine, [switch]$ManagedLifecycle, [switch]$ManagedReconnect, [string]$BuildDirectory = 'dist')
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'GsxInitializationChecks.ps1')
-Assert-GsxInitializationOptions ([bool]$StopSuiteTemporarily) ([bool]$HardwareAudio) ([bool]$HardwarePlaybackAudio) ([bool]$ReconnectGsx) ([bool]$RestartAudioEngine) ([bool]$ManagedLifecycle)
+Assert-GsxInitializationOptions ([bool]$StopSuiteTemporarily) ([bool]$HardwareAudio) ([bool]$HardwarePlaybackAudio) ([bool]$ReconnectGsx) ([bool]$RestartAudioEngine) ([bool]$ManagedLifecycle) ([bool]$ManagedReconnect)
 if ($StopSuiteTemporarily) {
     $principal=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
     if (!$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -50,6 +50,7 @@ $audioStopAttempted=$false; $audioRestartVerified=$false
 $gsxPreparedEntry=$null
 $vendorHandoffObserved=$null; $vendorHandoffWaitSeconds=$null
 $managedOutcome='NotRequested'; $managedRestoreVerified=$false
+$managedWaitingObserved=$false; $managedReconnectVerified=$false; $reconnectedReady=$null
 $fullGsxAfterRelease=$null; $fullB20AfterRelease=$null
 function Save-Diagnostics([string]$name) {
     $path=Join-Path $reportRoot ($name+'.json')
@@ -101,7 +102,7 @@ function Save-ManagedState {
 }
 function Start-Helper([string]$mode,[string]$name) {
     $directory=Join-Path $reportRoot $name
-    $duration=if($ReconnectGsx -or $RestartAudioEngine){'600'}else{'300'}
+    $duration=if($ReconnectGsx -or $RestartAudioEngine -or $ManagedReconnect){'600'}else{'300'}
     $arguments=@($mode,'--report-directory',('"'+$directory+'"'),'--stop-file',('"'+$stopFile+'"'),'--seconds',$duration)
     if ($mode -ne '--retain-b20') { $arguments+=@('--initial-state',('"'+$startupPath+'"')) }
     if ($mode -in @('--manage-gsx','--validate-managed-gsx')) {
@@ -163,11 +164,28 @@ function Wait-GsxConnection([bool]$connected) {
         $snapshot=Save-Diagnostics ('reconnect-poll-'+$connected+'-'+$attempt)
         if (Test-GsxConnectionState $snapshot $mic.Usb.InstanceId $connected) {
             $snapshot | ConvertTo-Json -Depth 20 | Set-Content (Join-Path $reportRoot $(if($connected){'gsx-return-observed.json'}else{'gsx-disconnect-observed.json'})) -Encoding UTF8
-            return
+            return $snapshot
         }
         $attempt++; Start-Sleep -Milliseconds 500
     }
     throw ('Timed out waiting for GSX '+$(if($connected){'reconnection'}else{'removal'})+'. Vendor support will be restored.')
+}
+function Wait-ManagedRemoval($entry) {
+    $path=Join-Path $entry.Directory 'heartbeat.json'; $watch=[Diagnostics.Stopwatch]::StartNew()
+    while ($watch.Elapsed.TotalSeconds -lt 10) {
+        Require-ServiceStopped
+        if (Test-Path -LiteralPath $path) {
+            $heartbeat=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+            if ($heartbeat.State -eq 'WaitingForDevice') {
+                Assert-GsxManagedWaiting $heartbeat $entry.Process.Id 1
+                $heartbeat | ConvertTo-Json -Depth 20 | Set-Content (Join-Path $reportRoot 'managed-removal-observed.json') -Encoding UTF8
+                return
+            }
+            if ($heartbeat.State -eq 'Faulted' -or $heartbeat.Error) { throw 'Managed helper failed during removal.' }
+        }
+        Start-Sleep -Milliseconds 100
+    }
+    throw 'Managed helper did not observe GSX removal. Recovery will proceed without claiming reconnect.'
 }
 try {
     $baseline=Save-Diagnostics 'baseline'
@@ -225,9 +243,9 @@ try {
         } else { Save-Diagnostics 'service-stopped-before-initialization' | Out-Null }
         if ($ReconnectGsx) {
             Write-Host 'Unplug only the GSX 300 USB cable now. Leave B20 connected. You have 60 seconds.'
-            Wait-GsxConnection $false; $disconnectObserved=$true
+            Wait-GsxConnection $false | Out-Null; $disconnectObserved=$true
             Write-Host 'GSX removal observed. Reconnect the GSX 300 USB cable now. You have 60 seconds.'
-            Wait-GsxConnection $true; $returnObserved=$true
+            Wait-GsxConnection $true | Out-Null; $returnObserved=$true
             Write-Host 'Same physical GSX returned. Attempting fresh initialization; avoid changing controls.'
         }
         if ($ManagedLifecycle) { $managedOutcome='Failed' } else { $initializationOutcome='Failed' }
@@ -250,6 +268,29 @@ try {
             $initializationOutcome='Passed'
         }
         if ((Hash-Bytes (Read-Apo '0098')) -ne (Hash-Bytes $gsxBefore)) { throw 'GSX host memory differs from the complete starting snapshot.' }
+        if ($ManagedReconnect) {
+            Write-Host 'Managed helper connected. Unplug only the GSX 300 USB cable now. Leave B20 connected. You have 60 seconds.'
+            Wait-GsxConnection $false | Out-Null; $disconnectObserved=$true
+            Wait-ManagedRemoval $entry; $managedWaitingObserved=$true
+            if ($b20Before) {
+                $b20Absent=Read-Apo '009f'; [IO.File]::WriteAllBytes((Join-Path $reportRoot 'b20-during-gsx-removal.bin'),$b20Absent)
+                if ((Hash-Bytes $b20Absent) -ne (Hash-Bytes $b20Before)) { throw 'B20 memory changed during GSX removal.' }
+            }
+            Write-Host 'GSX removal observed by the helper. Reconnect the GSX 300 USB cable now. You have 60 seconds.'
+            $returned=Wait-GsxConnection $true; $returnObserved=$true
+            $returnedMic=@($returned.Endpoints | Where-Object {$_.Direction -eq 1 -and $_.Usb.VendorId -eq '1395' -and $_.Usb.ProductId -eq '0098'})[0]
+            $returnedSound=@($returned.Endpoints | Where-Object {$_.Direction -eq 0 -and $_.Usb.VendorId -eq '1395' -and $_.Usb.ProductId -eq '0098'})[0]
+            $reconnectedReady=Wait-Ready $entry 'connection-0002.json'
+            Require-ServiceStopped
+            Assert-GsxManagedReadiness $reconnectedReady $hostProcess.Id $returnedMic $returnedSound $micControl.Microphone.Value $soundControl.Playback.Value 2
+            $gsxReturned=Read-Apo '0098'; [IO.File]::WriteAllBytes((Join-Path $reportRoot 'gsx-managed-reconnected.bin'),$gsxReturned)
+            if ((Hash-Bytes $gsxReturned) -ne (Hash-Bytes $gsxBefore)) { throw 'Complete GSX buffer differs after managed reconnect restoration.' }
+            $managedReconnectVerified=$true
+            Save-Diagnostics 'managed-reconnected-with-host' | Out-Null
+            Restore-WindowsAudio 'managed-reconnect'
+            Require-ServiceStopped
+            Write-Host 'Managed GSX generation 2 restored both processing pages. Checking controls and recovery.'
+        }
         if ($RestartAudioEngine) {
             Start-Service Audiosrv -ErrorAction Stop
             (Get-Service Audiosrv).WaitForStatus('Running',[TimeSpan]::FromSeconds(15))
@@ -301,7 +342,7 @@ finally {
             Start-Service Audiosrv -ErrorAction Stop
             (Get-Service Audiosrv).WaitForStatus('Running',[TimeSpan]::FromSeconds(15))
         }
-        if ($audioStopAttempted -and (Get-Service Audiosrv).Status -eq 'Running') { Restore-WindowsAudio 'audio-engine-recovery' }
+        if (($audioStopAttempted -or ($ManagedReconnect -and $returnObserved)) -and (Get-Service Audiosrv).Status -eq 'Running') { Restore-WindowsAudio 'audio-engine-recovery' }
     } catch { $errors.Add('Windows Audio restoration: '+$_.Exception.Message) }
     try {
         if ($serviceStopAttempted -and (Get-Service EPOSGamingSuiteService).Status -ne 'Running') {
@@ -372,6 +413,7 @@ finally {
     }
     if ($ManagedLifecycle) {
         $outcome=Get-GsxManagedOutcome $prepared ([bool]$StopSuiteTemporarily) $managedOutcome $managedRestoreVerified $controlOutcome $vendorHandoffObserved $fullGsxRestored $fullGsxAfterRelease ([bool]$b20Before) $fullB20Preserved $fullB20AfterRelease $savedStateUnchanged ($errors.Count -gt 0) ($differences.Count -gt 0)
+        $outcome=Get-GsxManagedReconnectOutcome $outcome ([bool]$ManagedReconnect) ([bool]$StopSuiteTemporarily) $disconnectObserved $managedWaitingObserved $returnObserved $managedReconnectVerified
     } else {
         $outcome=Get-GsxInitializationOutcome $prepared ([bool]$StopSuiteTemporarily) $initializationOutcome $controlOutcome $audioOutcome $playbackAudioOutcome ([bool]$HardwareAudio) ([bool]$HardwarePlaybackAudio) ($errors.Count -gt 0) ($differences.Count -gt 0)
     }
@@ -379,6 +421,12 @@ finally {
     $summary.ManagedLifecycleRequested=[bool]$ManagedLifecycle; $summary.ManagedOutcome=$managedOutcome
     $summary.ManagedRestoreVerified=$managedRestoreVerified; $summary.SavedStateUnchanged=$savedStateUnchanged
     $summary.FullGsxBufferRestoredAfterRelease=$fullGsxAfterRelease; $summary.FullB20BufferPreservedAfterRelease=$fullB20AfterRelease
+    $summary.ManagedReconnectRequested=[bool]$ManagedReconnect; $summary.ManagedRemovalObserved=$managedWaitingObserved
+    $summary.ManagedReconnectRecoveryTested=([bool]$ManagedReconnect -and $outcome -eq 'Passed' -and $managedReconnectVerified)
+    $summary.ReconnectRequested=([bool]$ReconnectGsx -or [bool]$ManagedReconnect)
+    $summary.ReconnectTested=$summary.ManagedReconnectRecoveryTested
+    $summary.ManagedReconnectGeneration=if($reconnectedReady){$reconnectedReady.Generation}else{$null}
+    $summary.ManagedReconnectCreatedFresh=if($reconnectedReady){$reconnectedReady.CreatedFresh}else{$null}
     if ($ManagedLifecycle) { $summary.AutomaticRestore=$managedRestoreVerified; $summary.StartupPolicy='Isolated per-device typed state, opt-in restore'; $summary.InitializationOutcome='NotRequested' }
     $summary | ConvertTo-Json -Depth 12 | Set-Content (Join-Path $reportRoot 'summary.json') -Encoding UTF8
     Write-Output ('GSX initialization reports: '+$reportRoot)
@@ -390,6 +438,7 @@ if ($outcome -eq 'BlockedByExistingObjects') {
     exit 3
 }
 if ($outcome -eq 'Inconclusive') { Write-Warning ('Initialization/control/restoration passed; microphone audio: '+$audioOutcome+'; playback audio: '+$playbackAudioOutcome+'. See the individual reports.'); exit 2 }
-if ($ManagedLifecycle -and $StopSuiteTemporarily) { Write-Output 'GSX managed saved-state restoration, microphone/playback controls and recovery passed.' }
+if ($ManagedReconnect -and $StopSuiteTemporarily) { Write-Output 'GSX managed physical reconnect, saved-state restoration, microphone/playback controls and recovery passed.' }
+elseif ($ManagedLifecycle -and $StopSuiteTemporarily) { Write-Output 'GSX managed saved-state restoration, microphone/playback controls and recovery passed.' }
 elseif ($StopSuiteTemporarily) { Write-Output 'GSX fresh initialization, microphone/playback controls and recovery passed.' }
 else { Write-Output 'Read-only GSX preparation passed. No service changes, vendor-object creation or settings writes.' }

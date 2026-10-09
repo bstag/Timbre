@@ -1,5 +1,6 @@
 # Pure option/evidence rules shared by the live runner and fixture-free offline checks.
-function Assert-GsxInitializationOptions([bool]$StopSuiteTemporarily, [bool]$HardwareAudio, [bool]$HardwarePlaybackAudio, [bool]$ReconnectGsx, [bool]$RestartAudioEngine, [bool]$ManagedLifecycle=$false) {
+function Assert-GsxInitializationOptions([bool]$StopSuiteTemporarily, [bool]$HardwareAudio, [bool]$HardwarePlaybackAudio, [bool]$ReconnectGsx, [bool]$RestartAudioEngine, [bool]$ManagedLifecycle=$false, [bool]$ManagedReconnect=$false) {
+    if ($ManagedReconnect -and !$ManagedLifecycle) { throw '-ManagedReconnect requires -ManagedLifecycle. Add -StopSuiteTemporarily only for the physical administrator test.' }
     if ($HardwareAudio -and !$StopSuiteTemporarily) { throw '-HardwareAudio requires -StopSuiteTemporarily.' }
     if ($HardwarePlaybackAudio -and !$StopSuiteTemporarily) { throw '-HardwarePlaybackAudio requires -StopSuiteTemporarily.' }
     if ($ReconnectGsx -and !$StopSuiteTemporarily) { throw '-ReconnectGsx requires -StopSuiteTemporarily.' }
@@ -51,17 +52,39 @@ function Assert-GsxManagedValidation($Report,[int]$ProcessId,$Microphone,$Playba
     Assert-GsxManagedValues ([pscustomobject]@{Microphone=$Report.Effects;Playback=$Report.Playback}) $MicrophoneValue $PlaybackValue
 }
 
-function Assert-GsxManagedReadiness($Report,[int]$ProcessId,$Microphone,$Playback,$MicrophoneValue,$PlaybackValue) {
+function Assert-GsxManagedReadiness($Report,[int]$ProcessId,$Microphone,$Playback,$MicrophoneValue,$PlaybackValue,[int]$Generation=1) {
     Assert-GsxManagedReportIdentity $Report $ProcessId $Microphone $Playback
-    if ($Report.Mode -cne 'ManageGsxLifecycle' -or $Report.State -cne 'Connected' -or $Report.Generation -ne 1 -or
+    if ($Generation -lt 1 -or $Report.Mode -cne 'ManageGsxLifecycle' -or $Report.State -cne 'Connected' -or $Report.Generation -ne $Generation -or
         ($Report.Generation -isnot [int] -and $Report.Generation -isnot [long]) -or $null -ne $Report.Error -or
         $Report.StartupRestorePolicy -cne 'LastSavedProcessing' -or $Report.CreatedFresh -isnot [bool]) {
-        throw 'The managed helper did not report its first saved-state connection.'
+        throw 'The managed helper did not report the expected saved-state connection generation.'
     }
     foreach ($flag in @($Report.SettingsWrites,$Report.AutomaticRestore)) {
         if ($flag -isnot [bool] -or !$flag) { throw 'Managed readiness did not verify the opted-in restoration path.' }
     }
     Assert-GsxManagedValues $Report.Effects $MicrophoneValue $PlaybackValue
+}
+
+function Assert-GsxManagedWaiting($Report,[int]$ProcessId,[int]$Generation) {
+    if ($ProcessId -le 0 -or $Generation -lt 1 -or $Report.ProcessId -ne $ProcessId -or
+        $Report.Mode -cne 'ManageGsxLifecycle' -or $Report.State -cne 'WaitingForDevice' -or
+        ($Report.Generation -isnot [int] -and $Report.Generation -isnot [long]) -or $Report.Generation -ne $Generation -or
+        $null -ne $Report.Endpoint -or $null -ne $Report.PlaybackEndpoint -or $null -ne $Report.Effects -or $null -ne $Report.Error) {
+        throw 'The managed helper did not observe removal and release its endpoint pair.'
+    }
+    foreach ($flag in @($Report.SettingsWrites,$Report.AutomaticRestore,$Report.CreatedFresh)) {
+        if ($flag -isnot [bool] -or $flag) { throw 'Managed waiting report contains missing or writable connection evidence.' }
+    }
+}
+
+function Get-GsxManagedReconnectOutcome([string]$BaseOutcome,[bool]$Requested,[bool]$StopRequested,
+    $RemovalObserved,$WaitingObserved,$ReturnObserved,$RestoreVerified) {
+    if ($BaseOutcome -cne 'Passed') { return 'Failed' }
+    if (!$Requested) { return $BaseOutcome }
+    foreach ($flag in @($RemovalObserved,$WaitingObserved,$ReturnObserved,$RestoreVerified)) {
+        if ($flag -isnot [bool] -or $flag -ne $StopRequested) { return 'Failed' }
+    }
+    return 'Passed'
 }
 
 function Get-GsxManagedOutcome([bool]$Prepared,[bool]$StopRequested,[string]$ManagedOutcome,[bool]$RestoreVerified,
