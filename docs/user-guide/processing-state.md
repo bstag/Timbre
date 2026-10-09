@@ -12,7 +12,7 @@ Either endpoint ID changing, or an observed disappearance of either page, starts
 
 GSX state lives under `%LOCALAPPDATA%\Timbre\gsx-processing-state`, separate from B20 state, profiles and setups. Schema 1 contains the complete typed pair, physical USB identity, UTC save time and opt-in preference. Demo/render storage is isolated. Atomic writes and bounded locks use the same rules as the B20 store described below. A helper can use this directory explicitly; Timbre does not launch a helper, create missing processor objects or install a replacement service. The installed EPOS driver/APO remains required.
 
-UI policy and paired transport are covered by offline/demo/private-object tests. The earlier [managed GSX pilot](../research/gsx-host-lifecycle.md) validates the helper's warm saved-state/control/recovery path. It is separate from a live run of these new UI controls; physical app reconnect, cold boot and installed background lifecycle remain additional checks.
+UI policy and paired transport are covered by offline/demo/private-object tests. The [live UI check on 2026-10-09](../research/gsx-host-lifecycle.md#live-ui-save-and-app-start-restoration-on-2026-10-09) also passed explicit paired save, manual restore and opt-in warm app-start restoration with EPOS support running, preserving both complete device buffers and other saved files. The earlier managed GSX pilot validates the helper's separate warm saved-state/control/recovery path. Physical app reconnect, cold boot and installed background lifecycle remain additional checks.
 
 ## B20: remember successfully applied microphone processing
 
