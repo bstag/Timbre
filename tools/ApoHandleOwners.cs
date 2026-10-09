@@ -1,3 +1,6 @@
+#if NET9_0_OR_GREATER
+#pragma warning disable 8600, 8601, 8602, 8603, 8604, 8618
+#endif
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,6 +15,9 @@ namespace EposResearch {
         public string ProcessName { get; set; }
         public int HandleCount { get; set; }
     }
+#if NET9_0_OR_GREATER
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+#endif
     public static class ApoHandleOwners {
         [StructLayout(LayoutKind.Sequential)] struct HandleEntry {
             public IntPtr Object, ProcessId, Handle;

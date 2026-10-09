@@ -23,6 +23,17 @@
       </Grid.ColumnDefinitions>
       <Border Style="{StaticResource Card}" Padding="14" Margin="0">
         <DockPanel>
+          <Expander x:Name="SupportExpander" DockPanel.Dock="Bottom" Header="Background support · experimental" IsExpanded="False" FontSize="12" Margin="0,8,0,0">
+            <StackPanel Margin="0,8,0,0">
+              <TextBlock Text="GSX and the connected B20. Start explicitly for this app session; latest applied settings are kept when returning control to EPOS. Administrator approval required." Style="{StaticResource Caption}" />
+              <TextBlock x:Name="SupportInfo" Style="{StaticResource Caption}" Margin="0,8,0,0" />
+              <WrapPanel Margin="0,8,0,0">
+                <Button x:Name="StartSupportButton" Content="Start support" Click="StartSupportClick" Margin="0,0,8,8" />
+                <Button x:Name="StopSupportButton" Content="Stop support" Click="StopSupportClick" Margin="0,0,0,8" />
+                <Button x:Name="OpenSupportReportsButton" Content="Open reports" Click="OpenSupportReportsClick" Margin="0,0,0,8" />
+              </WrapPanel>
+            </StackPanel>
+          </Expander>
           <StackPanel DockPanel.Dock="Top">
             <TextBlock Text="CONNECTED DEVICES" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Accent}" />
             <TextBlock x:Name="DeviceCount" Style="{StaticResource Caption}" Margin="0,8,0,12" />

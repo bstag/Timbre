@@ -16,19 +16,20 @@ public partial class MainWindow
     private Dictionary<UIElement, bool>? helperGuard;
     private void LoadHelperPilot()
     {
+        LoadSupportSession();
         GsxHelperExpander.Visibility = Selected is { } endpoint && GsxProcessingRestoreSession.IsGsx(endpoint) ? Visibility.Visible : Visibility.Collapsed;
         if (GsxHelperExpander.Visibility != Visibility.Visible) return;
         string? unavailable = null;
         try { SelectedGsxPair(); unavailable = helperPilot.UnavailableReason; }
         catch (Exception ex) { unavailable = ex.Message; }
         GsxHelperInfo.Text = HelperPilotBusy ? helperPilotStatus.Message : unavailable ?? helperPilotStatus.Message;
-        RunGsxHelperButton.IsEnabled = !HelperPilotBusy && !usbWorkBusy && unavailable is null;
+        RunGsxHelperButton.IsEnabled = !HelperPilotBusy && !SupportActive && !usbWorkBusy && unavailable is null;
         GsxHelperReconnectCheck.IsEnabled = !HelperPilotBusy;
         OpenGsxHelperReportsButton.IsEnabled = !demo && helperPilotStatus.ReportDirectory is { } directory && Directory.Exists(directory);
     }
     private async void RunGsxHelperClick(object sender, RoutedEventArgs e)
     {
-        if (HelperPilotBusy || usbWorkBusy) return;
+        if (HelperPilotBusy || SupportActive || usbWorkBusy) return;
         try {
             SelectedGsxPair();
             if (pending || effectsPending || playbackPending || sidetonePending || gsxSidetonePending || liveQueue.HasPending || gsxLiveQueue.HasPending)

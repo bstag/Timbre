@@ -46,14 +46,16 @@ public partial class MainWindow : Window
     private bool volumePending, mutePending;
     private IReadOnlyList<AudioEndpoint> endpoints = [];
     private bool loading, pending;
+    private bool windowClosed;
     private AudioEndpoint? Selected => DeviceList.SelectedItem as AudioEndpoint;
 
     public MainWindow(IAudioBackend backend, DeviceCatalog catalog, ProfileStore profiles, ProcessingStateStore processingStates, SetupProfileStore setups, bool demo)
         : this(backend, catalog, profiles, processingStates, setups, demo, demo ? new InlineUsbWorkRunner() : new ThreadedUsbWorkRunner()) { }
-    internal MainWindow(IAudioBackend backend, DeviceCatalog catalog, ProfileStore profiles, ProcessingStateStore processingStates, SetupProfileStore setups, bool demo, IUsbWorkRunner usbRunner, IGsxHelperPilot? helperPilot = null)
+    internal MainWindow(IAudioBackend backend, DeviceCatalog catalog, ProfileStore profiles, ProcessingStateStore processingStates, SetupProfileStore setups, bool demo, IUsbWorkRunner usbRunner, IGsxHelperPilot? helperPilot = null, ISupportSession? supportSession = null)
     {
         this.usbRunner = usbRunner;
         this.helperPilot = helperPilot ?? (demo ? new DemoGsxHelperPilot() : new GsxHelperPilot(AppContext.BaseDirectory));
+        this.supportSession = supportSession ?? (demo ? new DemoSupportSession() : new SupportSession(AppContext.BaseDirectory, Path.GetDirectoryName(processingStates.DirectoryPath)!));
         this.backend = backend; this.catalog = catalog; this.profiles = profiles; this.demo = demo;
         this.processingStates = processingStates; processingRestore = new(processingStates);
         effects = demo ? new DemoMicrophoneEffectsBackend() : WindowsApoMemory.Create(backend);
@@ -80,7 +82,8 @@ public partial class MainWindow : Window
         gsxLiveTimer.Tick += GsxLiveTick;
         Closing += DeviceUpdateClosing;
         Closing += HelperPilotClosing;
-        Loaded += (_, _) => timer.Start(); Closed += (_, _) => { timer.Stop(); CancelLiveChanges(); patternGeneration++; patternCancellation.Cancel(); patternCancellation.Dispose(); gsxGeneration++; gsxReadCancellation.Cancel(); gsxReadCancellation.Dispose(); };
+        Closing += SupportClosing;
+        Loaded += (_, _) => timer.Start(); Closed += (_, _) => { windowClosed = true; timer.Stop(); CancelLiveChanges(); patternGeneration++; patternCancellation.Cancel(); patternCancellation.Dispose(); gsxGeneration++; gsxReadCancellation.Cancel(); gsxReadCancellation.Dispose(); };
         RefreshDevices();
         try { LoadSetups(); } catch (Exception ex) { Error("Cannot read saved setups", ex); }
     }
@@ -96,6 +99,7 @@ public partial class MainWindow : Window
             DeviceCount.Text = $"{endpoints.Count} audio endpoints · updates automatically";
             Status.Text = demo ? "Demo mode. Your Windows audio settings are untouched." : "Ready. Live changes apply as you adjust controls; profiles save when you choose.";
             DeviceList.SelectedItem = endpoints.FirstOrDefault(e => e.Id == previous) ?? endpoints.FirstOrDefault(e => e.Direction == AudioDirection.Microphone) ?? endpoints.FirstOrDefault();
+            LoadSupportSession();
             if (Selected is null) {
                 DetailPanel.IsEnabled = false; ApplyButton.IsEnabled = false;
                 DeviceTitle.Text = "Connect an EPOS device"; DeviceInfo.Text = "Connect a USB device, then choose Refresh devices."; FormatInfo.Text = ""; FeatureNote.Text = "";
@@ -163,7 +167,11 @@ public partial class MainWindow : Window
     }
     private void PollCurrent()
     {
+        if (windowClosed) return;
         PollHelperPilot();
+        PollSupportSession();
+        if (windowClosed) return;
+        if (SupportPaused) return;
         if (HelperPilotBusy) return;
         if (usbWorkBusy) return;
         try {
@@ -352,6 +360,7 @@ public partial class MainWindow : Window
     }
     private async void LoadPickupPattern()
     {
+        if (windowClosed) return;
         if (Selected is not { Direction: AudioDirection.Microphone, Usb: { VendorId: "1395", ProductId: "009F" } } endpoint) {
             PickupPatternInfo.Visibility = Visibility.Collapsed; return;
         }
@@ -632,7 +641,7 @@ public partial class MainWindow : Window
     }
     private void CheckProcessingRestores()
     {
-        if (HelperPilotBusy) return;
+        if (HelperPilotBusy || SupportActive) return;
         CheckGsxProcessingRestore();
         foreach (var endpoint in endpoints.Where(IsB20)) {
             if (Selected?.Id == endpoint.Id && effectsPending) continue;
@@ -822,6 +831,7 @@ public partial class MainWindow : Window
         VerifyGsxMicrophoneUi();
         VerifyGsxProcessingUi();
         VerifyGsxHelperUi();
+        VerifySupportSessionUi();
         VerifyPlaybackMonitorUi();
         VerifyReverbUi();
         VerifyGsxSidetoneUi();

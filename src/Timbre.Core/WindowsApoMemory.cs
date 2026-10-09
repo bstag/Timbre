@@ -6,6 +6,22 @@ namespace Timbre.Core;
 public static class WindowsApoMemory
 {
     [SupportedOSPlatform("windows")]
+    public static byte[] CaptureDiagnostic(AudioEndpoint endpoint, IAudioBackend audio)
+    {
+        ValidateIdentity(endpoint, audio.Discover());
+        var name = MicrophoneObjectName(endpoint);
+        using var mutex = Mutex.OpenExisting(name + "_mutex");
+        ApoSharedObjects.Enter(mutex);
+        try {
+            using var map = MemoryMappedFile.OpenExisting(name + "_memory", MemoryMappedFileRights.Read);
+            using var view = map.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
+            if (view.Capacity != 4096) throw new InvalidDataException("Unknown effects memory size.");
+            var bytes = new byte[4096];
+            if (view.ReadArray(0, bytes, 0, bytes.Length) != bytes.Length) throw new IOException("Incomplete effects snapshot.");
+            return bytes;
+        } finally { mutex.ReleaseMutex(); }
+    }
+    [SupportedOSPlatform("windows")]
     public static IMicrophoneEffectsBackend Create(IAudioBackend audio) => new ApoMicrophoneEffectsBackend(endpoint => {
         ValidateIdentity(endpoint, audio.Discover());
         return new Session(MicrophoneObjectName(endpoint), (offset, length) => ValidateMicrophonePatch(endpoint, offset, length));

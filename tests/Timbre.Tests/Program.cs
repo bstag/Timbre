@@ -47,5 +47,6 @@ GsxProcessingStateTests.Run(suite);
 B20HostLifecycleTests.Run(suite);
 GsxHostLifecycleTests.Run(suite);
 GsxHelperPilotTests.Run(suite);
+SupportSessionTests.Run(suite);
 suite.Report(args);
 return suite.Failures == 0 ? 0 : 1;

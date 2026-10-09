@@ -14,8 +14,13 @@ var thread = new Thread(() => {
     GsxHostLifecycle? gsxLifecycle = null;
     var started = DateTimeOffset.UtcNow;
     string? failure = null;
+    ApoHostOptions? sessionOptions = null;
+    CoreAudioBackend? sessionAudio = null;
     try {
         var options = ApoHostOptions.Parse(args);
+        if (options.SupervisorId is { } supervisor && !SupervisorIdentity.IsAlive(supervisor, options.SupervisorStartedUtc!.Value))
+            throw new InvalidOperationException("The session supervisor is absent or its identity changed. No objects opened.");
+        if (options.SupervisorId is not null) sessionOptions = options;
         var initialize = options.Mode == "--initialize-b20";
         var managed = options.Mode == "--manage-b20";
         var managedGsx = options.Mode == "--manage-gsx";
@@ -30,7 +35,9 @@ var thread = new Thread(() => {
         var deadline = started.AddSeconds(options.Seconds);
         // Holding/configuring objects must not activate an audio client during discovery.
         var audio = pausedGsx ? CoreAudioBackend.PrepareGsxInitialization(GsxApoStartupState.Load(options.InitialState!)) : new CoreAudioBackend(false);
-        bool Continue() => !Volatile.Read(ref stopRequested) && !File.Exists(options.StopFile) && DateTimeOffset.UtcNow < deadline;
+        sessionAudio = audio;
+        bool Continue() => !Volatile.Read(ref stopRequested) && !File.Exists(options.StopFile) && DateTimeOffset.UtcNow < deadline &&
+            (options.SupervisorId is null || SupervisorIdentity.IsAlive(options.SupervisorId.Value, options.SupervisorStartedUtc!.Value));
         if (initialize || managed) owner = B20HostOwner.Acquire();
         if (initializeGsx || validateGsx) {
             if (initializeGsx) owner = GsxHostOwner.Acquire();
@@ -110,8 +117,9 @@ var thread = new Thread(() => {
             }
         } else if (managedGsx) {
             owner = GsxHostOwner.Acquire();
+            var sessionSeeds = new SessionSeedCache();
             gsxLifecycle = new(options.DeviceInstance!, audio, new GsxProcessingStateStore(options.StateDirectory!),
-                (microphone, playback) => GsxApoStartupState.Load(options.InitialState!, microphone, playback),
+                (microphone, playback) => sessionSeeds.Gsx(options.InitialState!, microphone, playback),
                 (microphone, playback, startup) => OperatingSystem.IsWindows()
                     ? WindowsGsxHostConnection.Connect(microphone, playback, audio, startup) : throw new PlatformNotSupportedException());
             Save("starting", new { ProcessId = Environment.ProcessId, Started = started, Deadline = deadline,
@@ -119,6 +127,9 @@ var thread = new Thread(() => {
             var recordedGeneration = 0;
             while (Continue()) {
                 var status = gsxLifecycle.Tick(DateTimeOffset.UtcNow);
+                if (options.SupervisorId is not null && status.State == "Connected") {
+                    sessionSeeds.ObserveGsx(status.Endpoint!, status.PlaybackEndpoint!, WindowsApoMemory.CaptureDiagnostic(status.Endpoint!, audio));
+                }
                 var report = new { ProcessId = Environment.ProcessId, CollectedAt = DateTimeOffset.UtcNow, Started = started, Deadline = deadline,
                     Mode = "ManageGsxLifecycle", status.State, status.Endpoint, status.PlaybackEndpoint, status.Effects, status.CreatedFresh,
                     status.SettingsWrites, CreatesMissingObjects = true, AutomaticRestore = status.RestoreSource == "LastSavedProcessing",
@@ -136,14 +147,18 @@ var thread = new Thread(() => {
             if (recordedGeneration == 0 && !File.Exists(options.StopFile) && !Volatile.Read(ref stopRequested))
                 throw new TimeoutException("The target GSX never became ready before the experiment deadline.");
         } else if (managed) {
+            var sessionSeeds = new SessionSeedCache();
             lifecycle = new(options.DeviceInstance!, audio, new ProcessingStateStore(options.StateDirectory!),
-                endpoint => ApoStartupState.LoadForB20(options.InitialState!, endpoint),
+                endpoint => sessionSeeds.B20(options.InitialState!, endpoint),
                 (endpoint, seed) => OperatingSystem.IsWindows() ? WindowsB20HostConnection.Connect(endpoint, audio, seed) : throw new PlatformNotSupportedException());
             Save("starting", new { ProcessId = Environment.ProcessId, Started = started, Deadline = deadline,
                 Mode = "ManageB20Lifecycle", options.DeviceInstance, options.StateDirectory, AutomaticRestorePolicy = "SavedPerDeviceOptIn" });
             var recordedGeneration = 0;
             while (Continue()) {
                 var status = lifecycle.Tick(DateTimeOffset.UtcNow);
+                if (options.SupervisorId is not null && status.State == "Connected") {
+                    sessionSeeds.ObserveB20(status.Endpoint!, WindowsApoMemory.CaptureDiagnostic(status.Endpoint!, audio));
+                }
                 var report = new { ProcessId = Environment.ProcessId, CollectedAt = DateTimeOffset.UtcNow, Started = started, Deadline = deadline,
                     Mode = "ManageB20Lifecycle", status.State, status.Endpoint, status.Effects, status.CreatedFresh,
                     status.SettingsWrites, CreatesMissingObjects = true, AutomaticRestore = status.RestoreSource == "LastSavedProcessing",
@@ -191,6 +206,11 @@ var thread = new Thread(() => {
         result = 0;
     } catch (Exception ex) { failure = ex.ToString(); Console.Error.WriteLine(ex.Message); }
     finally {
+        if (sessionOptions is { } session && sessionAudio is not null) {
+            var handoff = WindowsSessionRecovery.Recover(session.Mode == "--manage-gsx" ? "0098" : "009f", session.DeviceInstance!, sessionAudio);
+            try { Save("vendor-recovery", handoff); } catch (Exception ex) { failure = (failure ?? "") + "\nRecovery report: " + ex.Message; result = 1; }
+            if (!handoff.Passed) { failure = (failure ?? "") + "\nVendor recovery: " + handoff.Error; result = 1; }
+        }
         try { gsxLifecycle?.Dispose(); lifecycle?.Dispose(); lifetime?.Dispose(); }
         catch (Exception ex) { failure = (failure ?? "") + "\nShutdown: " + ex; result = 1; }
         finally { owner?.Dispose(); }

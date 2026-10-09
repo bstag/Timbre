@@ -3,6 +3,7 @@ param([string]$ReportPath)
 $ErrorActionPreference='Stop'
 if ([string]::IsNullOrWhiteSpace($ReportPath)) { $ReportPath=Join-Path $PSScriptRoot '../artifacts/gsx-initialization-checks.json' }
 . (Join-Path $PSScriptRoot 'GsxInitializationChecks.ps1')
+. (Join-Path $PSScriptRoot 'SupportSessionChecks.ps1')
 # Synthetic reports only: never queries devices, opens audio streams or changes services.
 $checks=[Collections.Generic.List[object]]::new()
 function Check([string]$Name, [scriptblock]$Body) {
@@ -336,6 +337,39 @@ Check 'Guided report path refuses an existing destination without modifying it' 
     $path=Join-Path $root 'artifacts\gsx-initialization\already-there'
     try { [IO.Directory]::CreateDirectory($path) | Out-Null; Refuses { Get-GsxPilotReportDirectory $root $path }; Equal (Test-Path -LiteralPath $path) $true }
     finally { if([IO.Path]::GetFullPath($root).StartsWith([IO.Path]::GetTempPath(),[StringComparison]::OrdinalIgnoreCase)) { [IO.Directory]::Delete($root,$true) } }
+}
+Check 'Support controller identity requires the original live PID and start instant' {
+    $time=[DateTimeOffset]::Parse('2026-10-09T12:00:00Z')
+    $observed=[pscustomobject]@{Id=42;StartTime=$time;HasExited=$false}
+    Equal (Test-SupportController 42 $time $observed) $true
+    Equal (Test-SupportController 43 $time $observed) $false
+    Equal (Test-SupportController 42 $time.AddSeconds(1) $observed) $false
+    $observed.HasExited=$true;Equal (Test-SupportController 42 $time $observed) $false
+    Equal (Test-SupportController 42 $time $null) $false
+}
+Check 'Support heartbeat rejects wrong process device state and stale generation types' {
+    $report=[pscustomobject]@{ProcessId=42;State='Connected';Generation=1;Endpoint=[pscustomobject]@{Usb=[pscustomobject]@{InstanceId='device'}};Effects=[pscustomobject]@{Ready=$true}}
+    Assert-SupportHeartbeat $report 42 'device'
+    Refuses { Assert-SupportHeartbeat $report 43 'device' }; Refuses { Assert-SupportHeartbeat $report 42 'other' }
+    $report.Generation='1'; Refuses { Assert-SupportHeartbeat $report 42 'device' }
+    $report.Generation=1; $report.State='Faulted'; Refuses { Assert-SupportHeartbeat $report 42 'device' }
+}
+Check 'Support absence must clear active processing and settings writes' {
+    $report=[pscustomobject]@{ProcessId=42;State='WaitingForDevice';Generation=1;Endpoint=$null;Effects=$null;SettingsWrites=$false}
+    Assert-SupportHeartbeat $report 42 'device'
+    $report.SettingsWrites=$true; Refuses { Assert-SupportHeartbeat $report 42 'device' }
+    $report.SettingsWrites=$false;$report.Effects=[pscustomobject]@{Ready=$true}; Refuses { Assert-SupportHeartbeat $report 42 'device' }
+}
+Check 'Support reports reject existing evidence and allow an early cooperative cancellation only' {
+    $root=Join-Path ([IO.Path]::GetTempPath()) ('timbre-support-path-'+[Guid]::NewGuid().ToString('N'))
+    $path=Join-Path $root 'artifacts\support-session\one'
+    try {
+        Equal (Get-SupportReportDirectory $root $path) ([IO.Path]::GetFullPath($path))
+        Refuses { Get-SupportReportDirectory $root (Join-Path $root 'outside') }
+        [IO.Directory]::CreateDirectory($path) | Out-Null
+        [IO.File]::WriteAllText((Join-Path $path 'stop-session'),'stop'); Equal (Get-SupportReportDirectory $root $path) ([IO.Path]::GetFullPath($path))
+        [IO.File]::WriteAllText((Join-Path $path 'summary.json'),'{}'); Refuses { Get-SupportReportDirectory $root $path }
+    }finally{[IO.Directory]::Delete($root,$true)}
 }
 $failures=@($checks | Where-Object { !$_.Passed })
 $path=[IO.Path]::GetFullPath($ReportPath)
