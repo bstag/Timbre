@@ -93,7 +93,68 @@ internal static class GsxProcessingStateTests
             TestSuite.Assert(Math.Abs(ApoMicrophoneCodec.Read(memory.Bytes).GatePercent - 80) < .001f && memory.Notifications == 1);
         });
         StoreTests(suite);
+        RestoreSessionTests(suite);
         if (OperatingSystem.IsWindows()) NativeTests(suite);
+    }
+    private static void RestoreSessionTests(TestSuite suite)
+    {
+        suite.Case("GSX app restore is opt-in and enabling it does not overwrite this connection", () => WithStore(store => {
+            var memory = new Memory(); var before = GsxProcessingState.Read(memory.Bytes);
+            store.Remember(Mic, Output, Desired(before));
+            var session = new GsxProcessingRestoreSession(store); var audio = new Audio([Mic, Output]);
+            session.Observe(audio.Devices);
+            TestSuite.Assert(session.RestoreIfEnabled(Mic, Output, audio, Backend(memory)) is null && memory.Writes == 0);
+            store.SetRestoreOnConnect(Mic, Output, true);
+            TestSuite.Assert(session.RestoreIfEnabled(Mic, Output, audio, Backend(memory)) is null && memory.Writes == 0);
+            session.Observe([]); session.Observe(audio.Devices);
+            TestSuite.Assert(session.RestoreIfEnabled(Mic, Output, audio, Backend(memory))!.Matches(Desired(before)));
+        }));
+        suite.Case("GSX app restore runs once and polling preserves external edits and the saved file", () => WithStore(store => {
+            var memory = new Memory(); var before = GsxProcessingState.Read(memory.Bytes);
+            store.Remember(Mic, Output, Desired(before)); store.SetRestoreOnConnect(Mic, Output, true);
+            var saved = store.Load(Mic, Output); var session = new GsxProcessingRestoreSession(store); var audio = new Audio([Mic, Output]);
+            session.RestoreIfEnabled(Mic, Output, audio, Backend(memory));
+            memory.Bytes = Seed(); var writes = memory.Writes;
+            session.Observe(audio.Devices);
+            TestSuite.Assert(session.RestoreIfEnabled(Mic, Output, audio, Backend(memory)) is null && memory.Writes == writes && store.Load(Mic, Output) == saved);
+        }));
+        foreach (var direction in Enum.GetValues<AudioDirection>()) suite.Case("GSX app restore observes changed " + direction + " endpoint incarnation", () => WithStore(store => {
+            var memory = new Memory(); var before = GsxProcessingState.Read(memory.Bytes);
+            store.Remember(Mic, Output, Desired(before)); store.SetRestoreOnConnect(Mic, Output, true);
+            var session = new GsxProcessingRestoreSession(store); var audio = new Audio([Mic, Output]);
+            session.RestoreIfEnabled(Mic, Output, audio, Backend(memory)); memory.Bytes = Seed();
+            var mic = direction == AudioDirection.Microphone ? Mic with { Id = "new-mic" } : Mic;
+            var sound = direction == AudioDirection.Playback ? Output with { Id = "new-sound" } : Output;
+            audio.Devices = [mic, sound]; session.Observe(audio.Devices);
+            TestSuite.Assert(session.RestoreIfEnabled(mic, sound, audio, Backend(memory))!.Matches(Desired(before)));
+        }));
+        suite.Case("Failed GSX app automatic restore is not retried until another connection", () => WithStore(store => {
+            var memory = new Memory { FailWrite = 1 }; var before = GsxProcessingState.Read(memory.Bytes);
+            store.Remember(Mic, Output, Desired(before)); store.SetRestoreOnConnect(Mic, Output, true);
+            var session = new GsxProcessingRestoreSession(store); var audio = new Audio([Mic, Output]);
+            TestSuite.Throws<IOException>(() => session.RestoreIfEnabled(Mic, Output, audio, Backend(memory)));
+            var writes = memory.Writes; session.Observe(audio.Devices);
+            TestSuite.Assert(session.RestoreIfEnabled(Mic, Output, audio, Backend(memory)) is null && memory.Writes == writes);
+            session.Observe([Mic]); session.Observe(audio.Devices);
+            TestSuite.Assert(session.RestoreIfEnabled(Mic, Output, audio, Backend(memory))!.Matches(Desired(before)));
+        }));
+        suite.Case("GSX app pair selection refuses missing duplicated and different physical devices", () => {
+            foreach (IReadOnlyList<AudioEndpoint> devices in new IReadOnlyList<AudioEndpoint>[] {
+                [], [Mic], [Output], [Mic, Mic, Output], [Mic, Output, Output with { Id = "other" }],
+                [Mic, Output with { Usb = Output.Usb! with { InstanceId = "other" } }] })
+                TestSuite.Reject(() => GsxProcessingRestoreSession.SelectPair(devices));
+            var pair = GsxProcessingRestoreSession.SelectPair(new DemoAudioBackend().Discover());
+            TestSuite.Assert(pair.Microphone.Id == Mic.Id && pair.Playback.Id == Output.Id);
+        });
+        suite.Case("GSX demo paired restore rejects stale playback and unsupported high-pass before microphone writes", () => {
+            var mic = new DemoMicrophoneEffectsBackend(); var sound = new DemoPlaybackEffectsBackend();
+            var pair = new DemoGsxProcessingBackend(mic, sound); var before = pair.Read(Mic, Output);
+            TestSuite.Reject(() => pair.Apply(Mic, Output, before with { Playback = before.Playback with { SurroundEnabled = true } }, Desired(before)));
+            TestSuite.Assert(pair.Read(Mic, Output).Matches(before));
+            TestSuite.Reject(() => pair.Apply(Mic, Output, before, Desired(before) with {
+                Microphone = before.Microphone with { Processing = before.Microphone.Processing! with { HighPassEnabled = !before.Microphone.Processing.HighPassEnabled } } }));
+            TestSuite.Assert(pair.Read(Mic, Output).Matches(before));
+        });
     }
     private static void StoreTests(TestSuite suite)
     {

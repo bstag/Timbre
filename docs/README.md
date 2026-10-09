@@ -10,7 +10,7 @@ Read [project background and goals](project-background.md) for why this exists: 
 - [Device profiles and live controls](user-guide/profiles-and-live-controls.md): explicit saves, setup membership, and compatibility.
 - [Live microphone view](user-guide/live-microphone-view.md): activity/EQ display and capture-quality meaning.
 - [Live playback view](user-guide/live-playback-view.md): opt-in output activity.
-- [B20 processing persistence](user-guide/processing-state.md): last-applied state and opt-in restoration.
+- [Device processing persistence](user-guide/processing-state.md): B20 last-applied state, GSX paired saves and opt-in restoration.
 - [Control diagnostics](user-guide/control-diagnostics.md): availability and failure reasons.
 
 ## Development

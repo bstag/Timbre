@@ -329,6 +329,17 @@
                 <TextBlock x:Name="LiveInfo" Style="{StaticResource Caption}" FontSize="11" Margin="0,4,0,0" />
                 <TextBlock x:Name="SidetoneInfo" Visibility="{Binding Visibility, ElementName=SidetoneCard}" Style="{StaticResource Caption}" FontSize="11" Margin="0,4,0,0" />
                 <TextBlock x:Name="GsxSidetoneInfo" Visibility="{Binding Visibility, ElementName=GsxSidetoneCard}" Style="{StaticResource Caption}" FontSize="11" Margin="0,4,0,0" />
+                <Expander x:Name="GsxProcessingExpander" Header="Saved device processing" Visibility="Collapsed" IsExpanded="False" FontSize="13" Margin="0,8,0,0">
+                  <StackPanel>
+                    <TextBlock x:Name="SavedGsxProcessingInfo" Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                    <TextBlock Text="Both Microphone and Sound: gate, filter, EQ, stereo/7.1 and reverb. Volume, mute and sidetone stay separate." Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                    <CheckBox x:Name="RestoreGsxProcessingCheck" Content="Restore when this GSX connects or Timbre starts" Checked="RestoreGsxProcessingChanged" Unchecked="RestoreGsxProcessingChanged" Margin="0,8,0,0" />
+                    <WrapPanel HorizontalAlignment="Right" Margin="0,8,0,0">
+                      <Button x:Name="SaveGsxProcessingButton" Content="Save current processing" Click="SaveGsxProcessingClick" ToolTip="Save applied microphone and sound settings together; manual drafts are excluded" Margin="0,0,8,8" />
+                      <Button x:Name="RestoreGsxProcessingButton" Content="Restore saved processing" Click="RestoreGsxProcessingClick" ToolTip="Restore both microphone and sound processing for this GSX" Margin="0,0,0,8" />
+                    </WrapPanel>
+                  </StackPanel>
+                </Expander>
                 <Expander x:Name="MicrophoneProcessingExpander" Visibility="{Binding Visibility, ElementName=MicrophoneMonitorCard}" Header="Monitor &amp; restore details" IsExpanded="False" FontSize="13" Margin="0,8,0,0">
                   <StackPanel>
                     <TextBlock x:Name="MonitorStatus" Text="Enable live activity to analyze your microphone. No recordings are saved." Style="{StaticResource Caption}" Margin="0,8,0,0" />

@@ -1,4 +1,20 @@
-# B20 processing persistence and restore
+# Device processing persistence and restore
+
+## GSX 300: save both processing pages
+
+On either GSX **Sound** or **Microphone** page, open **Device details → Saved device processing**. **Save current processing** captures both pages together: microphone gate/filter/EQ and playback stereo/7.1/EQ/reverb. Live processing edits queued on the selected page are applied before saving; manual drafts are excluded. Later adjustments and profile/setup loads do not replace this save. Save again explicitly to update it.
+
+**Restore saved processing** restores the complete pair through one guarded memory transaction and cancels queued drafts on the selected page. Volume, endpoint mute, USB sidetone, B20 settings and named profiles are separate. The observed GSX high-pass bit is preserved in the record; changing that unsupported control during restoration is refused before either page is written.
+
+**Restore when this GSX connects or Timbre starts** defaults to off. Enabling it does not immediately apply settings. On a subsequent app launch or observed reconnect, Timbre waits for the complete microphone/sound pair and a readable processor interface, then attempts restoration once. It can restore while B20 is selected. Processing drafts on the selected GSX page defer the attempt. Later external changes remain intact; polling does not repeatedly replay the saved state. Failed automatic attempts require manual retry or another observed connection.
+
+Either endpoint ID changing, or an observed disappearance of either page, starts a new connection. Reconnects entirely between two-second polls can be missed. Missing/duplicate pages, different physical units and multiple GSX devices are refused. Unavailable or corrupt saved-state files disable save/restore controls and are preserved; Timbre does not silently reset their preferences. Controls recover after the underlying availability/file problem is resolved.
+
+GSX state lives under `%LOCALAPPDATA%\Timbre\gsx-processing-state`, separate from B20 state, profiles and setups. Schema 1 contains the complete typed pair, physical USB identity, UTC save time and opt-in preference. Demo/render storage is isolated. Atomic writes and bounded locks use the same rules as the B20 store described below. A helper can use this directory explicitly; Timbre does not launch a helper, create missing processor objects or install a replacement service. The installed EPOS driver/APO remains required.
+
+UI policy and paired transport are covered by offline/demo/private-object tests. The earlier [managed GSX pilot](../research/gsx-host-lifecycle.md) validates the helper's warm saved-state/control/recovery path. It is separate from a live run of these new UI controls; physical app reconnect, cold boot and installed background lifecycle remain additional checks.
+
+## B20: remember successfully applied microphone processing
 
 The app now saves its own last successfully applied B20 processing state. This is separate from named profiles and the diagnostic snapshots used by the experimental object host.
 

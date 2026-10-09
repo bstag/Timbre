@@ -62,7 +62,7 @@ Default verification builds the app/helper and tests, runs offline regressions a
 ## Known limitations
 
 - GSX high-pass and a separate monitoring mute are unavailable. B20 pickup-pattern status is experimental; pattern selection remains on the physical switch.
-- B20 processing restoration on app launch/reconnect defaults to off. GSX automatic processing restoration is not implemented.
+- B20 and GSX processing restoration on app launch/observed reconnect defaults to off. GSX **Saved device processing** explicitly saves and restores both Microphone and Sound processing; later adjustments leave that save unchanged. Both require an available installed processing interface while Timbre runs. See [processing restore](docs/user-guide/processing-state.md).
 - Separate experimental B20/GSX helpers have service-stopped initialization evidence. They are not installed services; cold boot and automatic GSX lifecycle remain unvalidated. Normal app startup uses vendor support.
 - Control readback, listening, reconnect behavior, and fresh-start audio are different checks. Local hardware results do not establish behavior on every PC or driver installation.
 - There is no installer or independent replacement audio processor/driver yet.

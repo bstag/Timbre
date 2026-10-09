@@ -57,6 +57,10 @@ public partial class MainWindow : Window
         this.processingStates = processingStates; processingRestore = new(processingStates);
         effects = demo ? new DemoMicrophoneEffectsBackend() : WindowsApoMemory.Create(backend);
         playback = demo ? new DemoPlaybackEffectsBackend() : WindowsApoMemory.CreatePlayback(backend);
+        gsxProcessingStates = new(Path.Combine(Path.GetDirectoryName(processingStates.DirectoryPath)!, "gsx-processing-state"));
+        gsxProcessingRestore = new(gsxProcessingStates);
+        gsxProcessing = demo ? new DemoGsxProcessingBackend((DemoMicrophoneEffectsBackend)effects, (DemoPlaybackEffectsBackend)playback)
+            : WindowsApoMemory.CreateGsxProcessing(backend);
         sidetone = demo ? new DemoSidetoneBackend() : WindowsSidetone.Create(backend);
         gsxSidetone = demo ? new DemoGsxSidetoneBackend() : WindowsGsxSidetone.Create(backend);
         this.setups = setups; setupControls = new(backend, effects, sidetone, playback, gsxSidetone);
@@ -85,6 +89,7 @@ public partial class MainWindow : Window
             endpoints = backend.Discover();
             RefreshSetupChoices();
             processingRestore.Observe(endpoints);
+            gsxProcessingRestore.Observe(endpoints);
             DeviceList.ItemsSource = endpoints;
             DeviceCount.Text = $"{endpoints.Count} audio endpoints · updates automatically";
             Status.Text = demo ? "Demo mode. Your Windows audio settings are untouched." : "Ready. Live changes apply as you adjust controls; profiles save when you choose.";
@@ -131,7 +136,7 @@ public partial class MainWindow : Window
         catch (Exception ex) { ApplyButton.IsEnabled = false; Error("Cannot read this endpoint", ex); }
         LoadEffects(true);
         LoadPlayback(true);
-        CheckProcessingRestores(); LoadSavedProcessing();
+        CheckProcessingRestores(); LoadSavedProcessing(); LoadSavedGsxProcessing();
         LoadSidetone(true);
         LoadGsxSidetone(true);
         try { LoadProfiles(); }
@@ -159,6 +164,7 @@ public partial class MainWindow : Window
         try {
             var connected = backend.Discover();
             processingRestore.Observe(connected);
+            gsxProcessingRestore.Observe(connected);
             if (!connected.OrderBy(e => e.Id).Select(e => (e.Id, e.ProfileIdentity)).SequenceEqual(endpoints.OrderBy(e => e.Id).Select(e => (e.Id, e.ProfileIdentity)))) RefreshDevices();
             CheckProcessingRestores();
         } catch (Exception ex) { Error("Cannot refresh connected devices", ex); }
@@ -169,6 +175,7 @@ public partial class MainWindow : Window
         LoadPlayback(!playbackPending);
         LoadSidetone(!sidetonePending);
         LoadGsxSidetone(!gsxSidetonePending, preserveAcceptedLevel: true);
+        LoadSavedGsxProcessing();
         LoadPickupPattern();
         UpdateDraftInfo();
     }
@@ -619,6 +626,7 @@ public partial class MainWindow : Window
     }
     private void CheckProcessingRestores()
     {
+        CheckGsxProcessingRestore();
         foreach (var endpoint in endpoints.Where(IsB20)) {
             if (Selected?.Id == endpoint.Id && effectsPending) continue;
             // Do not consume the connection's attempt while its APO interface is unavailable.
@@ -805,6 +813,7 @@ public partial class MainWindow : Window
         VerifyUnavailableEffectsUi();
         VerifyCompactControlsUi();
         VerifyGsxMicrophoneUi();
+        VerifyGsxProcessingUi();
         VerifyPlaybackMonitorUi();
         VerifyReverbUi();
         VerifyGsxSidetoneUi();

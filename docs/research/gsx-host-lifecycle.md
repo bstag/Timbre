@@ -2,7 +2,7 @@
 
 Updated 2026-10-09. See [current validation status](../validation/status.md) for hardware evidence and remaining checks.
 
-The experimental helper now supports `--manage-gsx`: it waits for one explicitly selected physical GSX 300, holds its processing objects, observes both pages and reconnects when its endpoint pair changes. This extends the earlier [fresh-initialization experiment](gsx-initialization.md). It does not install a Windows service, change service startup or stop/restart audio. The normal WPF app still uses the installed processor interface and explicit device/setup profiles; this helper's saved-state policy is not yet connected to the UI.
+The experimental helper now supports `--manage-gsx`: it waits for one explicitly selected physical GSX 300, holds its processing objects, observes both pages and reconnects when its endpoint pair changes. This extends the earlier [fresh-initialization experiment](gsx-initialization.md). It does not install a Windows service, change service startup or stop/restart audio. The normal WPF app uses the installed processor interface. Its separate Saved device processing drawer now shares the typed saved-state format and explicit opt-in, but does not launch this helper or create missing objects. See [device processing restore](../user-guide/processing-state.md).
 
 ## Saved state and restoration
 
@@ -94,4 +94,4 @@ Recovery observed the restarted vendor process holding all three GSX objects aft
 
 Independent read-only post-release diagnostics and captures again found zero differences across Windows level/mute, microphone processing, playback processing and sidetone, with both complete 4096-byte buffers byte-identical to baseline. `independent-managed-assessment.json` checks paired readiness, saved record identity/values/timestamp, stopped-service control reports, concurrent vendor/helper handle ownership, successful helper exits, independent buffers and current service/helper state. Capture files `artifacts/gsx-managed-post-release-20261009.bin` and `b20-managed-post-release-20261009.bin` remain local.
 
-Managed warm-session restoration and recovery are now verified. The normal WPF UI still uses its existing explicit profiles and has no GSX automatic-restore setting. Physical managed reconnect, fresh managed creation, cold boot, service-account/storage access and startup without the diagnostic seed remain outstanding.
+Managed warm-session restoration and recovery are now verified. The normal WPF UI now exposes explicit paired saves and opt-in restore using existing objects; its new live UI restoration path remains to be checked separately. Physical managed reconnect, fresh managed creation, cold boot, service-account/storage access and startup without the diagnostic seed remain outstanding.
