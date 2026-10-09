@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$StopSuiteTemporarily, [switch]$HardwareAudio, [switch]$HardwarePlaybackAudio, [switch]$ReconnectGsx, [switch]$RestartAudioEngine, [switch]$ManagedLifecycle, [switch]$ManagedReconnect, [string]$BuildDirectory = 'dist')
+param([switch]$StopSuiteTemporarily, [switch]$HardwareAudio, [switch]$HardwarePlaybackAudio, [switch]$ReconnectGsx, [switch]$RestartAudioEngine, [switch]$ManagedLifecycle, [switch]$ManagedReconnect, [string]$BuildDirectory = 'dist', [string]$ReportDirectory, [string]$ExpectedDeviceInstance)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'GsxInitializationChecks.ps1')
 Assert-GsxInitializationOptions ([bool]$StopSuiteTemporarily) ([bool]$HardwareAudio) ([bool]$HardwarePlaybackAudio) ([bool]$ReconnectGsx) ([bool]$RestartAudioEngine) ([bool]$ManagedLifecycle) ([bool]$ManagedReconnect)
@@ -29,7 +29,7 @@ $audioService=Get-Service Audiosrv
 if ($RestartAudioEngine -and ($audioService.Status -ne 'Running' -or @($audioService.DependentServices | Where-Object Status -eq 'Running').Count)) {
     throw 'Windows Audio must be Running with no running dependent services for the bounded restart test. No services changed.'
 }
-$reportRoot=Join-Path $root ('artifacts\gsx-initialization\'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,8))
+$reportRoot=Get-GsxPilotReportDirectory $root $ReportDirectory
 New-Item -ItemType Directory -Path $reportRoot | Out-Null
 $stopFile=Join-Path $reportRoot 'stop-hosts'
 $startupPath=Join-Path $reportRoot 'startup-state.json'
@@ -193,6 +193,7 @@ try {
     $outputs=@($baseline.Endpoints | Where-Object {$_.Direction -eq 0 -and $_.Usb.VendorId -eq '1395' -and $_.Usb.ProductId -eq '0098'})
     if ($mics.Count -ne 1 -or $outputs.Count -ne 1 -or $mics[0].Usb.InstanceId -ne $outputs[0].Usb.InstanceId) { throw 'Exactly one physical GSX microphone/sound pair is required.' }
     $mic=$mics[0]; $output=$outputs[0]
+    Assert-GsxPilotTarget $ExpectedDeviceInstance $mic.Usb.InstanceId
     $micControl=@($baseline.Controls | Where-Object EndpointId -eq $mic.Id)[0]
     $soundControl=@($baseline.Controls | Where-Object EndpointId -eq $output.Id)[0]
     if ($micControl.Microphone.Status -ne 'Available' -or $soundControl.Playback.Status -ne 'Available') { throw 'Current GSX processing must be readable before testing.' }
@@ -427,6 +428,7 @@ finally {
     $summary.ReconnectTested=$summary.ManagedReconnectRecoveryTested
     $summary.ManagedReconnectGeneration=if($reconnectedReady){$reconnectedReady.Generation}else{$null}
     $summary.ManagedReconnectCreatedFresh=if($reconnectedReady){$reconnectedReady.CreatedFresh}else{$null}
+    $summary.DeviceInstance=if($mic){$mic.Usb.InstanceId}else{$null}
     if ($ManagedLifecycle) { $summary.AutomaticRestore=$managedRestoreVerified; $summary.StartupPolicy='Isolated per-device typed state, opt-in restore'; $summary.InitializationOutcome='NotRequested' }
     $summary | ConvertTo-Json -Depth 12 | Set-Content (Join-Path $reportRoot 'summary.json') -Encoding UTF8
     Write-Output ('GSX initialization reports: '+$reportRoot)

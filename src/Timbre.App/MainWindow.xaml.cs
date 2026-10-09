@@ -50,9 +50,10 @@ public partial class MainWindow : Window
 
     public MainWindow(IAudioBackend backend, DeviceCatalog catalog, ProfileStore profiles, ProcessingStateStore processingStates, SetupProfileStore setups, bool demo)
         : this(backend, catalog, profiles, processingStates, setups, demo, demo ? new InlineUsbWorkRunner() : new ThreadedUsbWorkRunner()) { }
-    internal MainWindow(IAudioBackend backend, DeviceCatalog catalog, ProfileStore profiles, ProcessingStateStore processingStates, SetupProfileStore setups, bool demo, IUsbWorkRunner usbRunner)
+    internal MainWindow(IAudioBackend backend, DeviceCatalog catalog, ProfileStore profiles, ProcessingStateStore processingStates, SetupProfileStore setups, bool demo, IUsbWorkRunner usbRunner, IGsxHelperPilot? helperPilot = null)
     {
         this.usbRunner = usbRunner;
+        this.helperPilot = helperPilot ?? (demo ? new DemoGsxHelperPilot() : new GsxHelperPilot(AppContext.BaseDirectory));
         this.backend = backend; this.catalog = catalog; this.profiles = profiles; this.demo = demo;
         this.processingStates = processingStates; processingRestore = new(processingStates);
         effects = demo ? new DemoMicrophoneEffectsBackend() : WindowsApoMemory.Create(backend);
@@ -78,6 +79,7 @@ public partial class MainWindow : Window
         liveTimer.Tick += (_, _) => FlushLiveChanges();
         gsxLiveTimer.Tick += GsxLiveTick;
         Closing += DeviceUpdateClosing;
+        Closing += HelperPilotClosing;
         Loaded += (_, _) => timer.Start(); Closed += (_, _) => { timer.Stop(); CancelLiveChanges(); patternGeneration++; patternCancellation.Cancel(); patternCancellation.Dispose(); gsxGeneration++; gsxReadCancellation.Cancel(); gsxReadCancellation.Dispose(); };
         RefreshDevices();
         try { LoadSetups(); } catch (Exception ex) { Error("Cannot read saved setups", ex); }
@@ -142,6 +144,7 @@ public partial class MainWindow : Window
         try { LoadProfiles(); }
         catch (Exception ex) { ProfileList.ItemsSource = null; Error("Cannot read saved profiles", ex); }
         UpdateDraftInfo();
+        LoadHelperPilot();
     }
     private void ShowFeatures(AudioEndpoint endpoint)
     {
@@ -160,6 +163,8 @@ public partial class MainWindow : Window
     }
     private void PollCurrent()
     {
+        PollHelperPilot();
+        if (HelperPilotBusy) return;
         if (usbWorkBusy) return;
         try {
             var connected = backend.Discover();
@@ -176,6 +181,7 @@ public partial class MainWindow : Window
         LoadSidetone(!sidetonePending);
         LoadGsxSidetone(!gsxSidetonePending, preserveAcceptedLevel: true);
         LoadSavedGsxProcessing();
+        LoadHelperPilot();
         LoadPickupPattern();
         UpdateDraftInfo();
     }
@@ -626,6 +632,7 @@ public partial class MainWindow : Window
     }
     private void CheckProcessingRestores()
     {
+        if (HelperPilotBusy) return;
         CheckGsxProcessingRestore();
         foreach (var endpoint in endpoints.Where(IsB20)) {
             if (Selected?.Id == endpoint.Id && effectsPending) continue;
@@ -814,6 +821,7 @@ public partial class MainWindow : Window
         VerifyCompactControlsUi();
         VerifyGsxMicrophoneUi();
         VerifyGsxProcessingUi();
+        VerifyGsxHelperUi();
         VerifyPlaybackMonitorUi();
         VerifyReverbUi();
         VerifyGsxSidetoneUi();

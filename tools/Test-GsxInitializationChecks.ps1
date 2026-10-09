@@ -318,6 +318,25 @@ Check 'Managed reconnect cannot mask failed control, preservation or recovery ou
     Equal (Get-GsxManagedReconnectOutcome 'Failed' $true $true $true $true $true $true) 'Failed'
     Equal (Get-GsxManagedReconnectOutcome 'Passed' $false $true $false $false $false $false) 'Passed'
 }
+Check 'Guided pilot refuses a replaced selected physical device before service changes' {
+    Assert-GsxPilotTarget 'USB\GSX-ONE' 'usb\gsx-one'
+    Assert-GsxPilotTarget '' 'USB\GSX-ONE'
+    Refuses { Assert-GsxPilotTarget 'USB\GSX-ONE' 'USB\GSX-TWO' }
+}
+Check 'Guided report path stays in the source artifact directory' {
+    $root=Join-Path ([IO.Path]::GetTempPath()) ('timbre-pilot-path-'+[Guid]::NewGuid().ToString('N'))
+    $path=Join-Path $root 'artifacts\gsx-initialization\ui-pilot-one'
+    Equal (Get-GsxPilotReportDirectory $root $path) ([IO.Path]::GetFullPath($path))
+    Refuses { Get-GsxPilotReportDirectory $root (Join-Path $root 'outside') }
+    Refuses { Get-GsxPilotReportDirectory $root (Join-Path $root 'artifacts\gsx-initialization') }
+    Refuses { Get-GsxPilotReportDirectory $root (Join-Path $root 'artifacts\gsx-initialization\..\outside') }
+}
+Check 'Guided report path refuses an existing destination without modifying it' {
+    $root=Join-Path ([IO.Path]::GetTempPath()) ('timbre-pilot-path-'+[Guid]::NewGuid().ToString('N'))
+    $path=Join-Path $root 'artifacts\gsx-initialization\already-there'
+    try { [IO.Directory]::CreateDirectory($path) | Out-Null; Refuses { Get-GsxPilotReportDirectory $root $path }; Equal (Test-Path -LiteralPath $path) $true }
+    finally { if([IO.Path]::GetFullPath($root).StartsWith([IO.Path]::GetTempPath(),[StringComparison]::OrdinalIgnoreCase)) { [IO.Directory]::Delete($root,$true) } }
+}
 $failures=@($checks | Where-Object { !$_.Passed })
 $path=[IO.Path]::GetFullPath($ReportPath)
 [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path)) | Out-Null

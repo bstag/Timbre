@@ -1,4 +1,16 @@
 # Pure option/evidence rules shared by the live runner and fixture-free offline checks.
+function Assert-GsxPilotTarget([string]$Expected,[string]$Actual) {
+    if (![string]::IsNullOrWhiteSpace($Expected) -and $Expected -ine $Actual) { throw 'The selected physical GSX changed before test preparation. No services were changed.' }
+}
+function Get-GsxPilotReportDirectory([string]$Root,[string]$Requested) {
+    $parent=[IO.Path]::GetFullPath((Join-Path $Root 'artifacts\gsx-initialization'))
+    if ([string]::IsNullOrWhiteSpace($Requested)) { return Join-Path $parent ([DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,8)) }
+    $path=[IO.Path]::GetFullPath($Requested)
+    if (!$path.StartsWith($parent+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase) -or (Test-Path -LiteralPath $path)) {
+        throw 'The explicit pilot report directory must be new and inside artifacts\gsx-initialization. No services were changed.'
+    }
+    return $path
+}
 function Assert-GsxInitializationOptions([bool]$StopSuiteTemporarily, [bool]$HardwareAudio, [bool]$HardwarePlaybackAudio, [bool]$ReconnectGsx, [bool]$RestartAudioEngine, [bool]$ManagedLifecycle=$false, [bool]$ManagedReconnect=$false) {
     if ($ManagedReconnect -and !$ManagedLifecycle) { throw '-ManagedReconnect requires -ManagedLifecycle. Add -StopSuiteTemporarily only for the physical administrator test.' }
     if ($HardwareAudio -and !$StopSuiteTemporarily) { throw '-HardwareAudio requires -StopSuiteTemporarily.' }

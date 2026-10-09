@@ -340,6 +340,17 @@
                     </WrapPanel>
                   </StackPanel>
                 </Expander>
+                <Expander x:Name="GsxHelperExpander" Header="Experimental helper check" Visibility="Collapsed" IsExpanded="False" FontSize="13" Margin="0,8,0,0">
+                  <StackPanel>
+                    <TextBlock Text="Temporarily stops EPOS support, checks both GSX processing pages, then restores starting controls and service state. Keep other controllers idle. Requires administrator approval; Windows Audio stays running." Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                    <TextBlock x:Name="GsxHelperInfo" Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                    <CheckBox x:Name="GsxHelperReconnectCheck" Content="Include GSX unplug/replug check" Margin="0,8,0,0" />
+                    <WrapPanel HorizontalAlignment="Right" Margin="0,8,0,0">
+                      <Button x:Name="RunGsxHelperButton" Content="Run helper check" Click="RunGsxHelperClick" ToolTip="Open the bounded administrator check; follow its prompts and keep GSX connected through recovery" Margin="0,0,8,8" />
+                      <Button x:Name="OpenGsxHelperReportsButton" Content="Open reports" Click="OpenGsxHelperReportsClick" IsEnabled="False" Margin="0,0,0,8" />
+                    </WrapPanel>
+                  </StackPanel>
+                </Expander>
                 <Expander x:Name="MicrophoneProcessingExpander" Visibility="{Binding Visibility, ElementName=MicrophoneMonitorCard}" Header="Monitor &amp; restore details" IsExpanded="False" FontSize="13" Margin="0,8,0,0">
                   <StackPanel>
                     <TextBlock x:Name="MonitorStatus" Text="Enable live activity to analyze your microphone. No recordings are saved." Style="{StaticResource Caption}" Margin="0,8,0,0" />

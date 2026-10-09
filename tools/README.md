@@ -33,6 +33,8 @@ The GSX initializer now waits up to 45 seconds for actual vendor handle ownershi
 
 Adding `-ManagedReconnect` to the managed pilot selects its separate physical unplug/replug check. Without `-StopSuiteTemporarily`, it still performs only read-only preparation. The administrator test prompts for unplugging after initial helper readiness and permits reconnecting only after the helper reports removal. It requires generation-two saved-pair readback, complete buffer preservation and the same recovery checks. No Windows Audio restart, tone or reboot is requested. Keep B20 connected and GSX connected through recovery. See [managed reconnect preparation](../docs/research/gsx-host-lifecycle.md#managed-physical-reconnect-preparation-on-2026-10-09).
 
+The source app's [guided helper check](../docs/user-guide/helper-check.md) launches this managed administrator runner with `-ExpectedDeviceInstance` and a fresh `-ReportDirectory`. A changed selected USB instance is refused before service changes. Explicit report paths must be new and within the checkout's `artifacts/gsx-initialization` directory; existing/outside paths are refused. Ordinary command-line runs can omit both options and keep their original discovery/generated-report behavior.
+
 `Start-B20ReconnectCheck.ps1` launches a previously prepared administrator pilot. It requires ignored preparation/report inputs under `artifacts/apo-host` and validates saved-state identity/hash. A fresh checkout does not contain those inputs. `Test-ApoRecoveryChecks.ps1` replays a specific historical report set; it is not part of the clean-checkout suite.
 
 ## Investigation utilities

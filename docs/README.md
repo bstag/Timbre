@@ -12,6 +12,7 @@ Read [project background and goals](project-background.md) for why this exists: 
 - [Live playback view](user-guide/live-playback-view.md): opt-in output activity.
 - [Device processing persistence](user-guide/processing-state.md): B20 last-applied state, GSX paired saves and opt-in restoration.
 - [Control diagnostics](user-guide/control-diagnostics.md): availability and failure reasons.
+- [Guided GSX helper check](user-guide/helper-check.md): explicit administrator test sessions, progress, reports and recovery.
 
 ## Development
 

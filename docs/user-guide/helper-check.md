@@ -1,0 +1,15 @@
+# Guided GSX helper check
+
+This is an explicit experimental validation session in a verified source checkout. It uses the existing administrator runner to temporarily stop EPOS support, test managed microphone/playback processing and restore the starting controls and service/UI state. It does not install a background service or configure everyday startup. The installed EPOS driver/APO remains required.
+
+On either GSX page, open **Device details → Experimental helper check**. Apply or discard pending edits first, and leave other audio controllers idle. **Run helper check** opens administrator PowerShell; handle Windows' administrator approval yourself. Canceling approval leaves the check unstarted. Normal Timbre edits and window closing are paused while the runner checks recovery.
+
+The ordinary check needs no listening, unplugging or reboot. Optionally select **Include GSX unplug/replug check** before starting. Leave B20 connected, unplug GSX only when PowerShell asks, and reconnect only after it confirms that the helper observed removal. Leave GSX connected through control checks and recovery. Each physical step has a 60-second limit. Windows Audio stays running; EPOS support stops temporarily and the test changes processing controls before restoring them.
+
+The app displays preparation, connection/removal and final recovery status. **Open reports** opens the completed run's local folder. A pass requires paired saved-state restoration, successful controls, actual vendor ownership before helper release, exact buffer recovery and unchanged isolated saved state. Failed or missing evidence is displayed as a failure; inspect the reports and service state before trying again. The app never kills the runner to skip recovery.
+
+The selected physical device is checked again before service changes. The runner uses a fresh isolated copy of its current processing, so it does not replace your explicit saved pair, opt-in preference, profiles or setups. The helper is bounded to ten minutes, with shorter per-step waits and normal completion usually much sooner. This is a control/restoration check, without audio measurement. USB sidetone is outside its read-only diagnostic comparison.
+
+The check is disabled when the source runner or helper/test files are absent or their core binaries differ from the running app. Verify matching outputs with `Test-App.ps1`; use the same `-OutputDirectory` for building and launching. The portable ZIP intentionally excludes experimental host/test-runner infrastructure, so it offers normal controls and saved-state restoration but cannot launch this check.
+
+Offline/private/demo verification covers the launch arguments, elevation cancellation, pending-edit guards, unavailable binaries, progress, malformed reports, recovery outcome and process-handle release. Physical helper/reconnect evidence comes from the [administrator runner](../research/gsx-host-lifecycle.md#managed-physical-reconnect-passed-on-2026-10-09). The new button's real elevation/launch path still needs a user-operated pilot; offline UI verification never stops Windows services.
