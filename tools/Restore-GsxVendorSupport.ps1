@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$Baseline)
+param([Parameter(Mandatory=$true)][string]$Baseline,[string]$BuildDirectory='dist')
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'GsxInitializationChecks.ps1')
 . (Join-Path $PSScriptRoot 'ApoRecoveryChecks.ps1')
@@ -10,7 +10,8 @@ $principal=[Security.Principal.WindowsPrincipal]::new([Security.Principal.Window
 if (!$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Run vendor-service recovery in administrator PowerShell. No changes made.' }
 if (@(Get-Process Timbre.Host,EposControl.Host -ErrorAction SilentlyContinue).Count) { throw 'Close experimental helpers before vendor recovery.' }
 if ((Get-Service EPOSGamingSuiteService).Status -ne 'Running' -or (Get-Service Audiosrv).Status -ne 'Running') { throw 'Both services must already be Running for this bounded recovery.' }
-$appExe=Join-Path $root 'dist/Timbre.exe'
+$build=if([IO.Path]::IsPathRooted($BuildDirectory)){[IO.Path]::GetFullPath($BuildDirectory)}else{[IO.Path]::GetFullPath((Join-Path $root $BuildDirectory))}
+$appExe=Join-Path $build 'Timbre.exe'
 if (!(Test-Path -LiteralPath $appExe)) { throw 'Build the app first.' }
 $reportRoot=Join-Path $root ('artifacts/gsx-vendor-recovery/'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,8))
 [IO.Directory]::CreateDirectory($reportRoot) | Out-Null

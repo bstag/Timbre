@@ -105,8 +105,11 @@ public sealed class SupportSession : ISupportSession
         bool Text(string name, string expected) => value.TryGetProperty(name, out var item) && item.ValueKind == JsonValueKind.String && item.GetString() == expected;
         bool Empty(string name) => value.TryGetProperty(name, out var item) && item.ValueKind == JsonValueKind.Array && item.GetArrayLength() == 0;
         bool False(string name) => value.TryGetProperty(name, out var item) && item.ValueKind == JsonValueKind.False;
+        var stableDuration = value.TryGetProperty("RecoveryObservationSeconds", out var duration) && duration.ValueKind == JsonValueKind.Number &&
+            duration.TryGetDouble(out var seconds) && double.IsFinite(seconds) && seconds >= 60;
         return Text("DeviceInstance", instance) && Text("Outcome", "Passed") && Text("FinalServiceState", "Running") && Text("FinalAudioServiceState", "Running") &&
-            False("PrepareOnly") && True("ServiceStopAttempted") && True("VendorHandoffObserved") && True("HelpersStopped") && True("LatestControlsPreserved") && True("FullBuffersPreserved") && Empty("Errors") && Empty("SettingsDifferences");
+            False("PrepareOnly") && True("ServiceStopAttempted") && True("VendorHandoffObserved") && True("HelpersStopped") && True("LatestControlsPreserved") && True("FullBuffersPreserved") &&
+            True("RecoveryStabilityVerified") && stableDuration && Empty("Errors") && Empty("SettingsDifferences");
     }
     private static JsonDocument Read(string path)
     { if (new FileInfo(path).Length > 262144) throw new InvalidDataException("Session report exceeds its size limit.");

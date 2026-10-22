@@ -22,3 +22,17 @@ function Get-SupportReportDirectory([string]$Root,[string]$Requested) {
     }
     return $path
 }
+function Test-SupportRecoveryStable([object[]]$Observations) {
+    if ($Observations.Count -lt 3) { return $false }
+    $previous=-1.0; $first=$null
+    foreach($sample in $Observations) {
+        $seconds=$sample.ElapsedSeconds
+        if ($seconds -isnot [double] -and $seconds -isnot [single] -and $seconds -isnot [decimal] -and $seconds -isnot [int] -and $seconds -isnot [long]) { return $false }
+        if ([double]::IsNaN($seconds) -or [double]::IsInfinity($seconds) -or $seconds -lt 0 -or $seconds -le $previous) { return $false }
+        foreach($field in @('ControlsPreserved','FullBuffersPreserved','ServicesRunning','VendorOwnershipObserved')) {
+            if ($sample.$field -isnot [bool] -or !$sample.$field) { return $false }
+        }
+        if ($null -eq $first) { $first=$seconds }; $previous=$seconds
+    }
+    return ($previous-$first) -ge 60
+}

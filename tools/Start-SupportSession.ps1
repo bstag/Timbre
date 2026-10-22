@@ -41,6 +41,7 @@ $errors=[Collections.Generic.List[string]]::new(); $differences=[Collections.Gen
 $helpers=[Collections.Generic.List[object]]::new()
 $stop=Join-Path $reportRoot 'stop-hosts'; $request=Join-Path $reportRoot 'stop-session'
 $changed=$false; $suiteClosed=$false; $latest=$null; $buffers=@{}; $handoff=$false; $helpersStopped=$true; $controlsPreserved=$false; $buffersPreserved=$false
+$stabilityVerified=$false; $recoverySeconds=0; $observations=[Collections.Generic.List[object]]::new()
 $suite=@(Get-Process EPOSGamingSuite -ErrorAction SilentlyContinue)
 $started=[DateTimeOffset]::UtcNow; $deadline=$started.AddSeconds($SessionSeconds)
 $supervisorStarted=(Get-Process -Id $PID).StartTime.ToUniversalTime().ToString('o')
@@ -169,20 +170,51 @@ finally{
     }
     try{
         if($suiteClosed -and @(Get-Process EPOSGamingSuite -ErrorAction SilentlyContinue).Count -eq 0){Start-Process -FilePath 'C:\Program Files (x86)\EPOS\Gaming Suite\EPOSGamingSuite.exe' -WindowStyle Hidden}
-        $final=Diagnostic 'final'
-        foreach($prior in $latest.Controls){$current=@($final.Controls | Where-Object DeviceIdentity -eq $prior.DeviceIdentity)
-            if($current.Count -ne 1){$differences.Add('Endpoint differs: '+$prior.DeviceIdentity);continue}
-            foreach($field in @('Audio','Microphone','Playback','Sidetone')){if(($prior.$field | ConvertTo-Json -Depth 12 -Compress) -cne ($current[0].$field | ConvertTo-Json -Depth 12 -Compress)){$differences.Add($prior.DeviceIdentity+': '+$field+' differs')}}
-        }
-        $controlsPreserved=$latest -and $differences.Count -eq 0
-        $buffersPreserved=$true
-        foreach($product in $buffers.Keys){$bytes=Read-Buffer $product;[IO.File]::WriteAllBytes((Join-Path $reportRoot ($product+'-after-handoff.bin')),$bytes)
-            if([Convert]::ToBase64String($bytes) -cne [Convert]::ToBase64String($buffers[$product])){$buffersPreserved=$false;$differences.Add('Complete '+$product+' buffer differs after handoff.')}
-        }
+        # Vendor ownership at one instant is insufficient: Suite startup can
+        # release an interface later. Observe after helper release and UI restart.
+        $stabilityWatch=[Diagnostics.Stopwatch]::StartNew()
+        do{
+            $controlsPreserved=$false; $buffersPreserved=$false; $servicesReady=$false; $ownershipReady=$false
+            $index=$observations.Count
+            try{
+                $name=if($index -eq 0){'final'}else{'final-stability-'+$index}
+                $final=Diagnostic $name
+                foreach($prior in $latest.Controls){$current=@($final.Controls | Where-Object DeviceIdentity -eq $prior.DeviceIdentity)
+                    if($current.Count -ne 1){$differences.Add('Endpoint differs: '+$prior.DeviceIdentity);continue}
+                    foreach($field in @('Audio','Microphone','Playback','Sidetone')){if(($prior.$field | ConvertTo-Json -Depth 12 -Compress) -cne ($current[0].$field | ConvertTo-Json -Depth 12 -Compress)){$differences.Add($prior.DeviceIdentity+': '+$field+' differs')}}
+                }
+                $controlsPreserved=[bool]$latest -and $differences.Count -eq 0
+                $buffersPreserved=$true
+                foreach($product in $buffers.Keys){$bytes=Read-Buffer $product
+                    $suffix=if($index -eq 0){'-after-handoff.bin'}else{'-stability-'+$index+'.bin'}
+                    [IO.File]::WriteAllBytes((Join-Path $reportRoot ($product+$suffix)),$bytes)
+                    if([Convert]::ToBase64String($bytes) -cne [Convert]::ToBase64String($buffers[$product])){$buffersPreserved=$false;$differences.Add('Complete '+$product+' buffer differs after handoff.')}
+                }
+                $vendorNow=Get-CimInstance Win32_Service -Filter "Name='EPOSGamingSuiteService'"
+                $servicesReady=$vendorNow.State -eq 'Running' -and (Get-Service Audiosrv).Status -eq 'Running'
+                $ownershipReady=$true
+                if(!$PrepareOnly){
+                    $ownershipReady=$changed -and $handoff -and $vendorNow.ProcessId -eq $vendor.ProcessId
+                    foreach($product in $buffers.Keys){
+                        $ownersNow=@([EposResearch.ApoHandleOwners]::Read($product))
+                        $prefix='Global\CF4B411F-BE2B-4D84-8106-EC27CA0F8F05_1395_'+$product
+                        $namesNow=@($ownersNow | Where-Object ProcessId -eq $vendorNow.ProcessId | Select-Object -ExpandProperty ObjectName)
+                        $ownershipReady=$ownershipReady -and @('_memory','_event','_mutex' | Where-Object {($prefix+$_) -notin $namesNow}).Count -eq 0
+                    }
+                }
+            }catch{$controlsPreserved=$false;$buffersPreserved=$false;$ownershipReady=$false;$errors.Add('Post-release observation '+$index+': '+$_.Exception.Message)}
+            $observations.Add([pscustomobject]@{ElapsedSeconds=$stabilityWatch.Elapsed.TotalSeconds;ControlsPreserved=[bool]$controlsPreserved;FullBuffersPreserved=[bool]$buffersPreserved;ServicesRunning=[bool]$servicesReady;VendorOwnershipObserved=[bool]$ownershipReady})
+            $stabilityVerified=Test-SupportRecoveryStable $observations.ToArray()
+            if($observations.Count -gt 1){$recoverySeconds=$observations[$observations.Count-1].ElapsedSeconds-$observations[0].ElapsedSeconds}
+            Save-Report 'recovery-stability' ([pscustomobject]@{Verified=$stabilityVerified;ObservationSeconds=$recoverySeconds;Observations=$observations.ToArray()})
+            if($PrepareOnly -or !$controlsPreserved -or !$buffersPreserved -or !$servicesReady -or !$ownershipReady -or $stabilityVerified){break}
+            Start-Sleep -Milliseconds 1000
+        }while($stabilityWatch.Elapsed.TotalSeconds -lt 75)
     }catch{$errors.Add('Final verification: '+$_.Exception.Message)}
+    if(!$PrepareOnly -and !$stabilityVerified){$errors.Add('Post-release recovery did not remain verified for sixty seconds. Review recovery-stability.json; no settings were overwritten.')}
     $service=(Get-Service EPOSGamingSuiteService).Status.ToString();$audio=(Get-Service Audiosrv).Status.ToString()
-    $passed=$errors.Count -eq 0 -and $differences.Count -eq 0 -and $helpersStopped -and $controlsPreserved -and $buffersPreserved -and $service -eq 'Running' -and $audio -eq 'Running' -and ($PrepareOnly -or $handoff)
-    Save-Report 'summary' ([ordered]@{Outcome=$(if($passed){'Passed'}else{'Failed'});DeviceInstance=$ExpectedDeviceInstance;PrepareOnly=[bool]$PrepareOnly;ServiceStopAttempted=$changed;VendorHandoffObserved=$handoff;HelpersStopped=$helpersStopped;LatestControlsPreserved=[bool]$controlsPreserved;FullBuffersPreserved=$buffersPreserved;FinalServiceState=$service;FinalAudioServiceState=$audio;Errors=$errors.ToArray();SettingsDifferences=$differences.ToArray();UserStoresWritten=$false;AudioMeasured=$false;AudioEngineRestarted=$false})
+    $passed=$errors.Count -eq 0 -and $differences.Count -eq 0 -and $helpersStopped -and $controlsPreserved -and $buffersPreserved -and $service -eq 'Running' -and $audio -eq 'Running' -and ($PrepareOnly -or ($handoff -and $stabilityVerified))
+    Save-Report 'summary' ([ordered]@{Outcome=$(if($passed){'Passed'}else{'Failed'});DeviceInstance=$ExpectedDeviceInstance;PrepareOnly=[bool]$PrepareOnly;ServiceStopAttempted=$changed;VendorHandoffObserved=$handoff;HelpersStopped=$helpersStopped;LatestControlsPreserved=[bool]$controlsPreserved;FullBuffersPreserved=$buffersPreserved;RecoveryStabilityVerified=[bool]$stabilityVerified;RecoveryObservationSeconds=$recoverySeconds;FinalServiceState=$service;FinalAudioServiceState=$audio;Errors=$errors.ToArray();SettingsDifferences=$differences.ToArray();UserStoresWritten=$false;AudioMeasured=$false;AudioEngineRestarted=$false})
     if($owned){$owner.ReleaseMutex()};$owner.Dispose()
 }
 Write-Output ('Support session reports: '+$reportRoot)

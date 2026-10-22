@@ -55,7 +55,7 @@ internal static class SupportSessionTests
             Write(directory, "summary.json", new { Outcome = "Failed", DeviceInstance = Mic.Usb!.InstanceId, Errors = new[] { "Another support supervisor is already running." } });
             var status = rig.Session.Poll(); TestSuite.Assert(status.State == "Failed" && status.Message.Contains("Another support supervisor") && rig.Process.Disposals == 1);
         });
-        foreach(var field in new[] { "ServiceStopAttempted", "VendorHandoffObserved", "HelpersStopped", "LatestControlsPreserved", "FullBuffersPreserved" })
+        foreach(var field in new[] { "ServiceStopAttempted", "VendorHandoffObserved", "HelpersStopped", "LatestControlsPreserved", "FullBuffersPreserved", "RecoveryStabilityVerified" })
             suite.Case("Support recovery refuses missing false or nonboolean evidence: " + field, () => {
                 foreach(var bad in new JsonNode?[] { null, JsonValue.Create(false), JsonValue.Create("true") }) { var evidence = Evidence(); evidence[field] = bad; TestSuite.Assert(!Passed(evidence)); }
             });
@@ -64,6 +64,12 @@ internal static class SupportSessionTests
             foreach(var field in new[] { "Outcome", "DeviceInstance", "FinalServiceState", "FinalAudioServiceState" }) { var report = Evidence(); report[field] = "other"; TestSuite.Assert(!Passed(report)); }
             foreach(var field in new[] { "Errors", "SettingsDifferences" }) { var report = Evidence(); report[field] = new JsonArray("difference"); TestSuite.Assert(!Passed(report)); }
             foreach(var value in new JsonNode?[] { null, JsonValue.Create(true), JsonValue.Create("false") }) { var report = Evidence(); report["PrepareOnly"] = value; TestSuite.Assert(!Passed(report)); }
+        });
+        suite.Case("Support recovery refuses legacy one-shot evidence and incomplete stability durations", () => {
+            foreach(var bad in new JsonNode?[] { null, JsonValue.Create(0), JsonValue.Create(59.99), JsonValue.Create("60") }) {
+                var evidence = Evidence(); evidence["RecoveryObservationSeconds"] = bad; TestSuite.Assert(!Passed(evidence));
+            }
+            var legacy = Evidence(); legacy.Remove("RecoveryStabilityVerified"); legacy.Remove("RecoveryObservationSeconds"); TestSuite.Assert(!Passed(legacy));
         });
         suite.Case("Supervisor lifetime refuses dead, reused or inaccessible process identities and accepts offset-equivalent instants", () => {
             var time = DateTimeOffset.Parse("2026-10-09T12:00:00Z");
@@ -113,7 +119,7 @@ internal static class SupportSessionTests
     private static byte[] Capture(AudioEndpoint endpoint) => endpoint.Usb!.ProductId == "0098" ? Seed() : File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "apo-memory-009f.bin"));
     private static bool Passed(JsonObject value) { using var doc = JsonDocument.Parse(value.ToJsonString()); return SupportSession.RecoveryPassed(doc.RootElement, Mic.Usb!.InstanceId); }
     private static JsonObject Evidence() => new() { ["DeviceInstance"]=Mic.Usb!.InstanceId,["Outcome"]="Passed",["PrepareOnly"]=false,["ServiceStopAttempted"]=true,["FinalServiceState"]="Running",["FinalAudioServiceState"]="Running",
-        ["VendorHandoffObserved"]=true,["HelpersStopped"]=true,["LatestControlsPreserved"]=true,["FullBuffersPreserved"]=true,["Errors"]=new JsonArray(),["SettingsDifferences"]=new JsonArray() };
+        ["VendorHandoffObserved"]=true,["HelpersStopped"]=true,["LatestControlsPreserved"]=true,["FullBuffersPreserved"]=true,["RecoveryStabilityVerified"]=true,["RecoveryObservationSeconds"]=60,["Errors"]=new JsonArray(),["SettingsDifferences"]=new JsonArray() };
     private static void Write(string directory, string file, object value) { Directory.CreateDirectory(directory); File.WriteAllText(Path.Combine(directory, file), JsonSerializer.Serialize(value)); }
     private sealed class Rig : IDisposable
     {

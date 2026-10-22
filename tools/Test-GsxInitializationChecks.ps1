@@ -371,6 +371,44 @@ Check 'Support reports reject existing evidence and allow an early cooperative c
         [IO.File]::WriteAllText((Join-Path $path 'summary.json'),'{}'); Refuses { Get-SupportReportDirectory $root $path }
     }finally{[IO.Directory]::Delete($root,$true)}
 }
+function StableSupportSample([double]$Seconds) {
+    [pscustomobject]@{ElapsedSeconds=$Seconds;ControlsPreserved=$true;FullBuffersPreserved=$true;ServicesRunning=$true;VendorOwnershipObserved=$true}
+}
+Check 'Support recovery cannot pass from one immediate successful snapshot' {
+    Equal (Test-SupportRecoveryStable @((StableSupportSample 0))) $false
+    Equal (Test-SupportRecoveryStable @((StableSupportSample 0),(StableSupportSample 59))) $false
+    Equal (Test-SupportRecoveryStable @((StableSupportSample 0),(StableSupportSample 60))) $false
+}
+Check 'Support recovery accepts complete observations spanning sixty seconds' {
+    Equal (Test-SupportRecoveryStable @((StableSupportSample 0),(StableSupportSample 10),(StableSupportSample 60))) $true
+}
+Check 'Support recovery rejects delayed interface loss after initial successful handoff' {
+    $late=StableSupportSample 60; $late.FullBuffersPreserved=$false; $late.ControlsPreserved=$false
+    Equal (Test-SupportRecoveryStable @((StableSupportSample 0),(StableSupportSample 10),$late)) $false
+}
+Check 'Support recovery never hides intermediate loss behind a later successful observation' {
+    foreach($field in @('ControlsPreserved','FullBuffersPreserved','ServicesRunning','VendorOwnershipObserved')) {
+        $bad=StableSupportSample 10; $bad.$field=$false
+        Equal (Test-SupportRecoveryStable @((StableSupportSample 0),$bad,(StableSupportSample 60))) $false
+    }
+}
+Check 'Support recovery requires actual boolean evidence on every observation' {
+    foreach($field in @('ControlsPreserved','FullBuffersPreserved','ServicesRunning','VendorOwnershipObserved')) {
+        foreach($value in @($null,'true',1)) {
+            $bad=StableSupportSample 10; $bad.$field=$value
+            Equal (Test-SupportRecoveryStable @((StableSupportSample 0),$bad,(StableSupportSample 60))) $false
+        }
+    }
+}
+Check 'Support recovery refuses missing nonnumeric unordered and nonfinite observation times' {
+    Equal (Test-SupportRecoveryStable @()) $false
+    foreach($value in @($null,'10',-1,[double]::NaN,[double]::PositiveInfinity)) {
+        $bad=StableSupportSample 10; $bad.ElapsedSeconds=$value
+        Equal (Test-SupportRecoveryStable @((StableSupportSample 0),$bad,(StableSupportSample 60))) $false
+    }
+    Equal (Test-SupportRecoveryStable @((StableSupportSample 0),(StableSupportSample 0),(StableSupportSample 60))) $false
+    Equal (Test-SupportRecoveryStable @((StableSupportSample 10),(StableSupportSample 0),(StableSupportSample 30))) $false
+}
 $failures=@($checks | Where-Object { !$_.Passed })
 $path=[IO.Path]::GetFullPath($ReportPath)
 [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path)) | Out-Null
