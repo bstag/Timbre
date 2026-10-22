@@ -46,9 +46,7 @@ $suite=@(Get-Process EPOSGamingSuite -ErrorAction SilentlyContinue)
 $started=[DateTimeOffset]::UtcNow; $deadline=$started.AddSeconds($SessionSeconds)
 $supervisorStarted=(Get-Process -Id $PID).StartTime.ToUniversalTime().ToString('o')
 function Save-Report([string]$name,$value) {
-    $path=Join-Path $reportRoot ($name+'.json'); $temporary=$path+'.tmp'
-    [IO.File]::WriteAllText($temporary,($value | ConvertTo-Json -Depth 25),[Text.UTF8Encoding]::new($false))
-    Move-Item -LiteralPath $temporary -Destination $path -Force
+    Write-SupportReport (Join-Path $reportRoot ($name+'.json')) $value
 }
 function Session-State([string]$state) {
     Save-Report 'session' ([ordered]@{State=$state;DeviceInstance=$ExpectedDeviceInstance;SupervisorProcessId=$PID;CollectedAtUtc=[DateTimeOffset]::UtcNow.ToString('o');Deadline=$deadline.ToString('o');ServiceState=(Get-Service EPOSGamingSuiteService).Status.ToString()})
@@ -86,7 +84,7 @@ function Launch-Host([string]$product,[string]$instance) {
 function Heartbeat($entry) {
     if($entry.Process.HasExited){throw ('Managed host exited: '+$entry.Name)}
     $path=Join-Path $entry.Directory 'heartbeat.json'
-    $value=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+    $value=Read-SupportReport $path
     Assert-SupportHeartbeat $value $entry.Process.Id $entry.Instance
     if($entry.Product -eq '0098' -and $value.State -eq 'Connected' -and $value.PlaybackEndpoint.Usb.InstanceId -ine $entry.Instance){throw 'GSX playback identity differs.'}
     return $value
@@ -164,7 +162,7 @@ finally{
     }catch{$errors.Add('Vendor recovery: '+$_.Exception.Message)}
     [IO.File]::WriteAllText($stop,'stop')
     foreach($entry in $helpers){
-        try{if(!$entry.Process.WaitForExit(55000)){throw 'Helper is still recovering; it was not killed.'};$stopped=Get-Content -LiteralPath (Join-Path $entry.Directory 'stopped.json') -Raw | ConvertFrom-Json
+        try{if(!$entry.Process.WaitForExit(55000)){throw 'Helper is still recovering; it was not killed.'};$stopped=Read-SupportReport (Join-Path $entry.Directory 'stopped.json')
             if($entry.Process.ExitCode -ne 0 -or $stopped.Success -ne $true){throw 'Helper shutdown/recovery failed.'}
         }catch{$helpersStopped=$false;$errors.Add($entry.Name+': '+$_.Exception.Message)}finally{$entry.Process.Dispose()}
     }

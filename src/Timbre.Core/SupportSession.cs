@@ -112,8 +112,7 @@ public sealed class SupportSession : ISupportSession
             True("RecoveryStabilityVerified") && stableDuration && Empty("Errors") && Empty("SettingsDifferences");
     }
     private static JsonDocument Read(string path)
-    { if (new FileInfo(path).Length > 262144) throw new InvalidDataException("Session report exceeds its size limit.");
-        var bytes = File.ReadAllBytes(path); if (bytes.Length > 262144) throw new InvalidDataException("Session report exceeds its size limit."); return JsonDocument.Parse(bytes); }
+    { return JsonDocument.Parse(AtomicReportFile.Read(path, 262144)); }
     private sealed class SessionProcess(Process process) : IGsxPilotProcess
     { public bool HasExited => process.HasExited; public void Dispose() => process.Dispose(); }
 }

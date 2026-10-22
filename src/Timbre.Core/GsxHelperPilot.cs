@@ -135,10 +135,7 @@ public sealed class GsxHelperPilot : IGsxHelperPilot
     }
     private static JsonDocument Read(string path)
     {
-        if (new FileInfo(path).Length > 262144) throw new InvalidDataException("Helper report exceeds the size limit.");
-        var bytes = File.ReadAllBytes(path);
-        if (bytes.Length > 262144) throw new InvalidDataException("Helper report exceeds the size limit.");
-        return JsonDocument.Parse(bytes);
+        return JsonDocument.Parse(AtomicReportFile.Read(path, 262144));
     }
     private static IGsxPilotProcess StartElevated(ProcessStartInfo info)
     {

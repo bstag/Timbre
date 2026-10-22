@@ -371,6 +371,43 @@ Check 'Support reports reject existing evidence and allow an early cooperative c
         [IO.File]::WriteAllText((Join-Path $path 'summary.json'),'{}'); Refuses { Get-SupportReportDirectory $root $path }
     }finally{[IO.Directory]::Delete($root,$true)}
 }
+Check 'Support report IO preserves literal paths Unicode and complete replacement' {
+    $root=Join-Path ([IO.Path]::GetTempPath()) ('timbre-report-path-'+[Guid]::NewGuid().ToString('N'))
+    $path=Join-Path $root "a report's [literal].json"
+    try {
+        [IO.Directory]::CreateDirectory($root) | Out-Null
+        Write-SupportReport $path ([pscustomobject]@{Value='voice';Generation=1})
+        Equal (Read-SupportReport $path).Generation 1
+        Write-SupportReport $path ([pscustomobject]@{Value=[string][char]233;Generation=2})
+        Equal (Read-SupportReport $path).Value ([string][char]233)
+        Equal @(Get-ChildItem -LiteralPath $root -Filter '*.tmp').Count 0
+    }finally{if([IO.Path]::GetFullPath($root).StartsWith([IO.Path]::GetFullPath([IO.Path]::GetTempPath()),[StringComparison]::OrdinalIgnoreCase)){[IO.Directory]::Delete($root,$true)}}
+}
+Check 'Support publisher retries native read locks and keeps the previous report until replacement' {
+    $root=Join-Path ([IO.Path]::GetTempPath()) ('timbre-report-lock-'+[Guid]::NewGuid().ToString('N'))
+    $held=$null
+    try {
+        [IO.Directory]::CreateDirectory($root) | Out-Null;$path=Join-Path $root 'heartbeat.json'
+        Write-SupportReport $path ([pscustomobject]@{Generation=1})
+        $held=[IO.FileStream]::new($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+        $attempts=[Collections.Generic.List[int]]::new()
+        Write-SupportReport $path ([pscustomobject]@{Generation=2}) {
+            param($attempt);$attempts.Add($attempt);Equal (Read-SupportReport $path).Generation 1;$held.Dispose()
+        }
+        Equal $attempts.Count 1;Equal (Read-SupportReport $path).Generation 2
+        Equal @(Get-ChildItem -LiteralPath $root -Filter '*.tmp').Count 0
+    }finally{if($held){$held.Dispose()};if([IO.Path]::GetFullPath($root).StartsWith([IO.Path]::GetFullPath([IO.Path]::GetTempPath()),[StringComparison]::OrdinalIgnoreCase)){[IO.Directory]::Delete($root,$true)}}
+}
+Check 'Support report IO refuses oversized data and directory replacement without leftovers' {
+    $root=Join-Path ([IO.Path]::GetTempPath()) ('timbre-report-guard-'+[Guid]::NewGuid().ToString('N'))
+    try {
+        [IO.Directory]::CreateDirectory($root) | Out-Null;$path=Join-Path $root 'oversized.json'
+        [IO.File]::WriteAllBytes($path,[byte[]]::new(262145));Refuses {Read-SupportReport $path}
+        $directory=Join-Path $root 'directory.json';[IO.Directory]::CreateDirectory($directory) | Out-Null
+        Refuses {Write-SupportReport $directory ([pscustomobject]@{Value=1})}
+        Equal ([IO.Directory]::Exists($directory)) $true;Equal @(Get-ChildItem -LiteralPath $root -Filter '*.tmp').Count 0
+    }finally{if([IO.Path]::GetFullPath($root).StartsWith([IO.Path]::GetFullPath([IO.Path]::GetTempPath()),[StringComparison]::OrdinalIgnoreCase)){[IO.Directory]::Delete($root,$true)}}
+}
 function StableSupportSample([double]$Seconds) {
     [pscustomobject]@{ElapsedSeconds=$Seconds;ControlsPreserved=$true;FullBuffersPreserved=$true;ServicesRunning=$true;VendorOwnershipObserved=$true}
 }

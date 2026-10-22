@@ -1,4 +1,34 @@
-# Pure session rules; production runner and fixture-free tests share these checks.
+# Shared session rules and report I/O; no audio, device or service operations.
+function Read-SupportReport([string]$Path) {
+    $stream=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+    try {
+        if($stream.Length -gt 262144){throw 'Report exceeds its size limit.'}
+        $bytes=[byte[]]::new([int]$stream.Length);$offset=0
+        while($offset -lt $bytes.Length){$count=$stream.Read($bytes,$offset,$bytes.Length-$offset);if($count -eq 0){throw 'Incomplete report.'};$offset+=$count}
+        if($stream.ReadByte() -ne -1){throw 'Report size changed during reading.'}
+        return ([Text.Encoding]::UTF8.GetString($bytes) | ConvertFrom-Json)
+    }finally{$stream.Dispose()}
+}
+function Write-SupportReport([string]$Path,$Value,[scriptblock]$OnContention) {
+    if([IO.Directory]::Exists($Path)){throw 'Report path is a directory.'}
+    $temporary=$Path+'.'+[Guid]::NewGuid().ToString('N')+'.tmp'
+    try {
+        [IO.File]::WriteAllText($temporary,($Value | ConvertTo-Json -Depth 25),[Text.UTF8Encoding]::new($false))
+        for($attempt=0;;$attempt++){
+            try {
+                if([IO.File]::Exists($Path)){[IO.File]::Replace($temporary,$Path,[NullString]::Value)}else{[IO.File]::Move($temporary,$Path)}
+                break
+            }
+            catch {
+                $failure=$_.Exception.GetBaseException();$code=$failure.HResult -band 65535
+                if($failure -is [ComponentModel.Win32Exception]){$code=$failure.NativeErrorCode}
+                if($attempt -ge 20 -or $code -notin @(5,32,33)){throw}
+                if($OnContention){& $OnContention ($attempt+1)}
+                Start-Sleep -Milliseconds 25
+            }
+        }
+    }finally{if([IO.File]::Exists($temporary)){try{[IO.File]::Delete($temporary)}catch{}}}
+}
 function Test-SupportController([int]$ExpectedId,[DateTimeOffset]$ExpectedStarted,$Observed) {
     return $ExpectedId -gt 0 -and $Observed -and $Observed.Id -eq $ExpectedId -and
         ([DateTimeOffset]$Observed.StartTime).UtcTicks -eq $ExpectedStarted.UtcTicks -and !$Observed.HasExited

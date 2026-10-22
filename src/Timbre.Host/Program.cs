@@ -222,9 +222,8 @@ var thread = new Thread(() => {
     }
     void Save(string name, object report)
     {
-        var path = Path.Combine(directory!, name + ".json"); var temporary = path + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
-        File.Move(temporary, path, true);
+        var path = Path.Combine(directory!, name + ".json");
+        AtomicReportFile.Write(path, JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
     }
 });
 thread.SetApartmentState(ApartmentState.STA); thread.Start(); thread.Join(); return result;
