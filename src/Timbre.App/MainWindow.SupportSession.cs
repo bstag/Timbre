@@ -75,6 +75,7 @@ public partial class MainWindow
     private void GuardSupport(bool active)
     {
         if (active && supportGuard is null) {
+            ResetPickupPattern();
             supportGuard = new UIElement[] { DetailPanel, DeviceList, SetupProfilesExpander, RefreshDevicesButton }.ToDictionary(control => control, control => control.IsEnabled);
             foreach (var control in supportGuard.Keys) control.IsEnabled = false;
         } else if (!active && supportGuard is { } guard) {

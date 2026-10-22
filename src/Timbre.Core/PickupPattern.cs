@@ -41,13 +41,19 @@ public static class B20PatternProtocol
 }
 public sealed class PickupPatternBackend(Func<AudioEndpoint, IPickupPatternSession> open) : IPickupPatternBackend
 {
+    private readonly Action requireQueryAllowed = () => { };
+    internal PickupPatternBackend(Func<AudioEndpoint, IPickupPatternSession> open, Action requireQueryAllowed) : this(open)
+        => this.requireQueryAllowed = requireQueryAllowed;
     public async Task<PickupPatternState> ReadAsync(AudioEndpoint endpoint, CancellationToken cancellation = default)
     {
         B20PatternProtocol.ValidateEndpoint(endpoint); cancellation.ThrowIfCancellationRequested();
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         deadline.CancelAfter(TimeSpan.FromMilliseconds(1500));
         try {
+            requireQueryAllowed();
             using var session = open(endpoint);
+            // A vendor service may have started while the HID handle opened.
+            requireQueryAllowed();
             await session.SendStatusQueryAsync(B20PatternProtocol.StatusQuery, deadline.Token).ConfigureAwait(false);
             // Bound unrelated-event traffic as well as wall-clock I/O.
             for (var i = 0; i < 32; i++) {

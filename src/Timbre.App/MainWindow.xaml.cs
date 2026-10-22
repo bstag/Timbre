@@ -360,7 +360,7 @@ public partial class MainWindow : Window
     }
     private async void LoadPickupPattern()
     {
-        if (windowClosed) return;
+        if (windowClosed || SupportPaused || HelperPilotBusy) return;
         if (Selected is not { Direction: AudioDirection.Microphone, Usb: { VendorId: "1395", ProductId: "009F" } } endpoint) {
             PickupPatternInfo.Visibility = Visibility.Collapsed; return;
         }

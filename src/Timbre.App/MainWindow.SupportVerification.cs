@@ -10,6 +10,7 @@ public partial class MainWindow
     internal static readonly string[] SupportScenarios = [
         "background support starts off and preserves pending drafts",
         "support startup pauses edits and excludes guided helper launches",
+        "support startup and recovery cancel pickup queries and pause new requests",
         "running support enables controls without automatic replay",
         "support stop preserves applied changes and refuses pending drafts",
         "support recovery failure releases guards without reporting success",
@@ -30,9 +31,13 @@ public partial class MainWindow
             window.StartSupportClick(window, new RoutedEventArgs());
             if (session.Starts != 0 || !window.pending || !window.DetailPanel.IsEnabled) throw new InvalidOperationException("Support discarded pending drafts or started with them.");
             window.DiscardChangesClick(window, new RoutedEventArgs());
+            var startupQueryCancellation = window.patternCancellation.Token;
             window.StartSupportClick(window, new RoutedEventArgs());
             if (session.Starts != 1 || !window.SupportPaused || window.DetailPanel.IsEnabled || window.StartSupportButton.IsEnabled)
                 throw new InvalidOperationException("Support startup did not guard competing edits.");
+            if (!startupQueryCancellation.IsCancellationRequested) throw new InvalidOperationException("Support startup left a pickup query active.");
+            window.LoadPickupPattern();
+            if (window.PickupPatternInfo.Text.Length != 0) throw new InvalidOperationException("Pickup polling resumed during support startup.");
             window.RunGsxHelperClick(window, new RoutedEventArgs());
             if (pilot.Starts != 0) throw new InvalidOperationException("A guided helper launched during background startup.");
             session.Status = new("Running", "Demo support running"); window.PollCurrent();
@@ -44,8 +49,12 @@ public partial class MainWindow
             window.DiscardChangesClick(window, new RoutedEventArgs()); window.LiveApplyCheck.IsChecked = true;
             window.LevelSlider.Value = 55; if (!window.FlushLiveChanges(true)) throw new InvalidOperationException("Demo support could not apply an ordinary live adjustment.");
             var applied = audio.Read(window.Selected!.Id);
+            var recoveryQueryCancellation = window.patternCancellation.Token;
             window.StopSupportClick(window, new RoutedEventArgs());
             if (!window.SupportPaused || window.DetailPanel.IsEnabled || audio.Read(window.Selected.Id) != applied) throw new InvalidOperationException("Support stop lost applied changes or failed to pause recovery edits.");
+            if (!recoveryQueryCancellation.IsCancellationRequested) throw new InvalidOperationException("Support recovery left a pickup query active.");
+            window.LoadPickupPattern();
+            if (window.PickupPatternInfo.Text.Length != 0) throw new InvalidOperationException("Pickup polling resumed during support recovery.");
             session.Status = new("Failed", "Demo recovery failed"); window.PollCurrent();
             if (window.SupportActive || !window.DetailPanel.IsEnabled || !window.SupportInfo.Text.Contains("failed")) throw new InvalidOperationException("Support failure was hidden or left controls guarded.");
             window.StartSupportClick(window, new RoutedEventArgs()); session.Status = new("Running", "Demo support running"); window.PollCurrent();

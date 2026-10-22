@@ -45,6 +45,26 @@ internal static class PickupPatternTests
             var backend = new PickupPatternBackend(_ => { opened = true; throw new Exception(); });
             TestSuite.Throws<OperationCanceledException>(() => backend.ReadAsync(Mic, cancel.Token).GetAwaiter().GetResult()); TestSuite.Assert(!opened);
         });
+        Case("Vendor-owned pickup channel refuses before opening HID", () => {
+            var opened = false;
+            var backend = new PickupPatternBackend(_ => { opened = true; return new FakeSession([0x80, 3, 2, 0xFF]); },
+                () => throw new InvalidOperationException("EPOS owns the status channel"));
+            TestSuite.Throws<InvalidOperationException>(() => backend.ReadAsync(Mic).GetAwaiter().GetResult());
+            TestSuite.Assert(!opened, "Vendor-owned channel was opened by a competing status reader");
+        });
+        Case("Vendor startup during HID opening prevents a query and disposes the session", () => {
+            var vendorRunning = false; var session = new FakeSession([0x80, 3, 2, 0xFF]);
+            var backend = new PickupPatternBackend(_ => { vendorRunning = true; return session; }, () => {
+                if (vendorRunning) throw new InvalidOperationException("Vendor started");
+            });
+            TestSuite.Throws<InvalidOperationException>(() => backend.ReadAsync(Mic).GetAwaiter().GetResult());
+            TestSuite.Assert(session.Queries == 0 && session.Disposed, "Query was sent after vendor startup or HID was left open");
+        });
+        Case("Released pickup channel preserves the single-query status path", () => {
+            var session = new FakeSession([0x80, 3, 2, 0xFF]);
+            var result = new PickupPatternBackend(_ => session, () => { }).ReadAsync(Mic).GetAwaiter().GetResult();
+            TestSuite.Assert(result.Pattern == PickupPattern.Cardioid && session.Queries == 1 && session.Disposed);
+        });
         Case("Pattern read failure disposes the native session", () => {
             var session = new FakeSession() { Failure = new IOException("Device removed") };
             TestSuite.Throws<IOException>(() => new PickupPatternBackend(_ => session).ReadAsync(Mic).GetAwaiter().GetResult()); TestSuite.Assert(session.Disposed);

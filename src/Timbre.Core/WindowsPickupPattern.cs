@@ -39,14 +39,24 @@ public sealed class WindowsPickupPattern(IAudioBackend audio) : IPickupPatternBa
             // Native enumeration/opening stays off the WPF dispatcher. No cached HID handle survives reconnect.
             return await Task.Run(async () => {
                 cancellation.ThrowIfCancellationRequested();
+                RequireQueryAllowed();
                 var device = B20PatternDeviceGuard.Select(endpoint, audio.Discover(), Enumerate());
-                var backend = new PickupPatternBackend(_ => new Session(device.Path));
+                var backend = new PickupPatternBackend(_ => new Session(device.Path), RequireQueryAllowed);
                 var state = await backend.ReadAsync(endpoint, cancellation).ConfigureAwait(false);
                 if (B20PatternDeviceGuard.Select(endpoint, audio.Discover(), Enumerate()) != device)
                     throw new IOException("B20 HID interface changed during the pattern query.");
                 return state;
             }, cancellation).ConfigureAwait(false);
         } finally { queryLock.Release(); }
+    }
+    private static void RequireQueryAllowed()
+    {
+        try { WindowsApoObjectHost.RequireSuiteStopped(); }
+        catch (InvalidOperationException) {
+            // EPOS queries B20 pattern status on its serial device-startup thread,
+            // before GSX attachment. Competing readers can delay that response.
+            throw new InvalidOperationException("Pickup-pattern status is paused while EPOS support is active. The physical switch still sets the pattern.");
+        }
     }
     public static IReadOnlyList<B20PatternHidDevice> Enumerate()
     {
